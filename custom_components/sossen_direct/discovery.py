@@ -11,7 +11,7 @@ Two complementary mechanisms, both keyed by Tuya Device ID:
    /24 networks and identify each inverter by a successful v3.5 session
    handshake with its local key (a wrong key fails the handshake). It is
    kept rare because it briefly opens a session on other Tuya devices too.
-   A changed address (DHCP) is picked up from the next broadcast.
+   A changed address (DHCP) is picked up from the next probe answer.
 
 The cloud reports only the public WAN address (the same for every device in
 the house), so it is never used for this.
@@ -112,6 +112,8 @@ class SossenDiscovery:
             info = json.loads(tinytuya.decrypt_udp(data))
         except Exception:  # noqa: BLE001
             return
+        if not isinstance(info, dict):
+            return
         dev_id = info.get("gwId") or info.get("devId")
         if dev_id not in self._keys or dev_id in self._fixed:
             return
@@ -157,15 +159,21 @@ class SossenDiscovery:
         return [dev_id for dev_id in self._keys if dev_id not in self._ips]
 
     async def _loop(self) -> None:
+        # The probe runs even when every address is known: v3.5 devices do
+        # not announce on their own, so the answers are also how a DHCP
+        # change gets noticed. The sweep only runs for never-heard devices.
         while True:
-            if self._missing():
+            try:
                 await self._send_probe()
                 now = time.monotonic()
                 if (
-                    now - self._started >= SWEEP_AFTER
+                    self._missing()
+                    and now - self._started >= SWEEP_AFTER
                     and now - self._last_sweep >= SWEEP_EVERY
                 ):
                     await self.async_sweep()
+            except Exception:  # noqa: BLE001
+                _LOGGER.exception("Discovery cycle failed, retrying")
             await asyncio.sleep(DISCOVERY_PROBE_EVERY)
 
     async def _ipv4_networks(self) -> list[tuple[str, ipaddress.IPv4Network]]:

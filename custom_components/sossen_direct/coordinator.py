@@ -69,6 +69,7 @@ class SossenCoordinator(DataUpdateCoordinator):
         super().__init__(
             hass,
             _LOGGER,
+            config_entry=entry,
             name=f"{DOMAIN} {device.get(CONF_NAME) or device[CONF_DEVICE_ID]}",
             update_interval=timedelta(seconds=self._poll_interval),
         )
