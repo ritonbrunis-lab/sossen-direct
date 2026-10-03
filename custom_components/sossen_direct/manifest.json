@@ -1,0 +1,12 @@
+{
+  "domain": "sossen_direct",
+  "name": "SOSSEN Direct",
+  "codeowners": ["@ritonbrunis-lab"],
+  "config_flow": true,
+  "dependencies": ["network"],
+  "documentation": "https://github.com/ritonbrunis-lab/sossen-direct",
+  "iot_class": "local_push",
+  "issue_tracker": "https://github.com/ritonbrunis-lab/sossen-direct/issues",
+  "requirements": ["tinytuya>=1.15.0", "tuya-device-sharing-sdk>=0.2.1"],
+  "version": "0.1.0"
+}

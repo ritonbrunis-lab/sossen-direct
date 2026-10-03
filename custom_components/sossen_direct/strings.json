@@ -1,0 +1,118 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "SOSSEN Direct",
+        "description": "Log in to your Smart Life (or PowerHome) account, only to fetch the inverters and their local keys. Data then flows locally over your LAN, not through the cloud.\n\nUser code: Smart Life app → Me → ⚙️ Settings → Account and Security → User Code.\n\n{msg}",
+        "data": {
+          "user_code": "User code"
+        }
+      },
+      "scan": {
+        "title": "Scan the QR code",
+        "description": "In the Smart Life app: Me → scan icon (top right), scan this code and confirm the login. Then press Submit."
+      },
+      "confirm": {
+        "title": "Inverters found",
+        "description": "{count} SOSSEN inverter(s) found:\n{names}\n\nTheir LAN address is discovered automatically. Readings appear while they produce (daytime), 2-3 minutes after start."
+      }
+    },
+    "error": {
+      "login_error": "User code rejected: {msg}",
+      "scan_error": "The QR code was not confirmed in the app. A new code is shown, try again."
+    },
+    "abort": {
+      "already_configured": "This account is already configured; its inverters and keys were updated.",
+      "no_inverters": "No SOSSEN inverter in this Smart Life account.",
+      "cloud_error": "Could not read the Smart Life device list."
+    }
+  },
+  "entity": {
+    "sensor": {
+      "dc_power_total_w": {
+        "name": "DC Total Power"
+      },
+      "ac_power_w": {
+        "name": "AC Power"
+      },
+      "ac_voltage_v": {
+        "name": "AC Voltage"
+      },
+      "ac_frequency_hz": {
+        "name": "AC Frequency"
+      },
+      "dc_voltage_1_v": {
+        "name": "DC Voltage 1"
+      },
+      "dc_current_1_a": {
+        "name": "DC Current 1"
+      },
+      "dc_power_1_w": {
+        "name": "DC Power 1"
+      },
+      "dc_voltage_2_v": {
+        "name": "DC Voltage 2"
+      },
+      "dc_current_2_a": {
+        "name": "DC Current 2"
+      },
+      "dc_power_2_w": {
+        "name": "DC Power 2"
+      },
+      "dc_voltage_3_v": {
+        "name": "DC Voltage 3"
+      },
+      "dc_current_3_a": {
+        "name": "DC Current 3"
+      },
+      "dc_power_3_w": {
+        "name": "DC Power 3"
+      },
+      "dc_voltage_4_v": {
+        "name": "DC Voltage 4"
+      },
+      "dc_current_4_a": {
+        "name": "DC Current 4"
+      },
+      "dc_power_4_w": {
+        "name": "DC Power 4"
+      },
+      "energy_total_kwh": {
+        "name": "Total Energy"
+      },
+      "temperature_c": {
+        "name": "Temperature"
+      },
+      "energy_dc_total_kwh": {
+        "name": "DC Energy (lifetime)"
+      },
+      "conversion_efficiency_lifetime": {
+        "name": "Conversion Efficiency (lifetime)"
+      },
+      "status": {
+        "name": "Status",
+        "state": {
+          "producing": "Producing",
+          "alarm": "Alarm",
+          "off": "Off"
+        }
+      },
+      "raw": {
+        "name": "Raw Data"
+      }
+    },
+    "number": {
+      "power_limit": {
+        "name": "Power Limit"
+      }
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "IP addresses (optional)",
+        "description": "Leave blank for automatic discovery. Only fill in if an inverter is never found.\n{names}"
+      }
+    }
+  }
+}

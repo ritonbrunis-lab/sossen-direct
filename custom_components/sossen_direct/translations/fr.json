@@ -1,0 +1,118 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "SOSSEN Direct",
+        "description": "Connexion à ton compte Smart Life (ou PowerHome), uniquement pour récupérer la liste des micro-onduleurs et leurs clés locales. Les données passent ensuite en direct sur ton réseau, sans le cloud.\n\nCode utilisateur : dans l'app Smart Life → Moi → ⚙️ Paramètres → Compte et sécurité → Code utilisateur.\n\n{msg}",
+        "data": {
+          "user_code": "Code utilisateur"
+        }
+      },
+      "scan": {
+        "title": "Scanne le QR code",
+        "description": "Dans l'app Smart Life : Moi → icône de scan en haut à droite, scanne ce code et confirme la connexion. Clique ensuite sur Valider."
+      },
+      "confirm": {
+        "title": "Micro-onduleurs trouvés",
+        "description": "{count} micro-onduleur(s) SOSSEN trouvé(s) :\n{names}\n\nLeur adresse sur ton réseau est trouvée automatiquement. Les mesures apparaissent quand ils produisent (en journée), 2 à 3 minutes après le démarrage."
+      }
+    },
+    "error": {
+      "login_error": "Code utilisateur refusé : {msg}",
+      "scan_error": "Le QR code n'a pas été validé dans l'app. Un nouveau code est affiché, réessaie."
+    },
+    "abort": {
+      "already_configured": "Ce compte est déjà configuré, ses onduleurs et clés ont été mis à jour.",
+      "no_inverters": "Aucun micro-onduleur SOSSEN dans ce compte Smart Life.",
+      "cloud_error": "Impossible de lire la liste des appareils du compte Smart Life."
+    }
+  },
+  "entity": {
+    "sensor": {
+      "dc_power_total_w": {
+        "name": "Puissance DC totale"
+      },
+      "ac_power_w": {
+        "name": "Puissance AC"
+      },
+      "ac_voltage_v": {
+        "name": "Tension AC"
+      },
+      "ac_frequency_hz": {
+        "name": "Fréquence AC"
+      },
+      "dc_voltage_1_v": {
+        "name": "Tension DC 1"
+      },
+      "dc_current_1_a": {
+        "name": "Courant DC 1"
+      },
+      "dc_power_1_w": {
+        "name": "Puissance DC 1"
+      },
+      "dc_voltage_2_v": {
+        "name": "Tension DC 2"
+      },
+      "dc_current_2_a": {
+        "name": "Courant DC 2"
+      },
+      "dc_power_2_w": {
+        "name": "Puissance DC 2"
+      },
+      "dc_voltage_3_v": {
+        "name": "Tension DC 3"
+      },
+      "dc_current_3_a": {
+        "name": "Courant DC 3"
+      },
+      "dc_power_3_w": {
+        "name": "Puissance DC 3"
+      },
+      "dc_voltage_4_v": {
+        "name": "Tension DC 4"
+      },
+      "dc_current_4_a": {
+        "name": "Courant DC 4"
+      },
+      "dc_power_4_w": {
+        "name": "Puissance DC 4"
+      },
+      "energy_total_kwh": {
+        "name": "Énergie totale"
+      },
+      "temperature_c": {
+        "name": "Température"
+      },
+      "energy_dc_total_kwh": {
+        "name": "Énergie DC (totale)"
+      },
+      "conversion_efficiency_lifetime": {
+        "name": "Rendement de conversion (total)"
+      },
+      "status": {
+        "name": "État",
+        "state": {
+          "producing": "En production",
+          "alarm": "Alarme",
+          "off": "Éteint"
+        }
+      },
+      "raw": {
+        "name": "Données brutes"
+      }
+    },
+    "number": {
+      "power_limit": {
+        "name": "Limite de puissance"
+      }
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Adresses IP (facultatif)",
+        "description": "Laisse vide pour une détection automatique. Remplis seulement si un onduleur n'est jamais trouvé.\n{names}"
+      }
+    }
+  }
+}
