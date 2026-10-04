@@ -45,19 +45,21 @@
       },
       "protection": {
         "title": "Protection anti-surtension",
-        "description": "Les onduleurs se coupent en général vers **253 V**, et la tension monte d'environ **3,5 V par kW injecté**. La protection baisse un peu toutes les limites avant d'en arriver là, puis les remonte quand la tension redescend.\n\nValeurs conseillées (celles par défaut) : baisse à **249 V**, remontée à **245 V**, par pas de **100 W**, toutes les **120 s**, jamais sous **500 W**.\n\nTu pourras tout changer plus tard dans les options de l'intégration, ou l'activer/couper avec son interrupteur.",
+        "description": "Les onduleurs se coupent en général vers **253 V**, et la tension monte d'environ **3,5 V par kW injecté**. La protection baisse un peu toutes les limites avant d'en arriver là, puis les remonte quand la tension redescend.\n\nValeurs conseillées (celles par défaut) : baisse à **249 V**, remontée à **245 V**, baisse de **70 W**, remontée de **30 W**, toutes les **120 s**, jamais sous **500 W**.\n\nTu pourras tout changer plus tard dans les options de l'intégration, ou l'activer/couper avec son interrupteur.",
         "data": {
           "protection": "Activer la protection anti-surtension",
           "high_voltage": "Baisser les limites à partir de",
           "low_voltage": "Remonter les limites sous",
-          "limit_step": "Pas",
+          "step_down": "Pas de baisse",
+          "step_up": "Pas de remontée",
           "min_limit": "Limite la plus basse",
           "max_limit": "Limite la plus haute",
           "interval": "Vérifier toutes les"
         },
         "data_description": {
           "high_voltage": "Tension AC la plus haute mesurée par les onduleurs en production.",
-          "limit_step": "Changement appliqué à chaque onduleur à chaque vérification.",
+          "step_down": "Retiré de chaque limite à chaque vérification tant que la tension est trop haute.",
+          "step_up": "Rajouté à chaque vérification une fois la tension assez basse : plus petit, pour éviter les oscillations.",
           "interval": "Chaque changement est une commande écrite dans l'onduleur : reste raisonnable."
         }
       }
@@ -160,6 +162,27 @@
     "number": {
       "power_limit": {
         "name": "Limite de puissance"
+      },
+      "protection_high_voltage": {
+        "name": "Protection seuil haut"
+      },
+      "protection_low_voltage": {
+        "name": "Protection seuil bas"
+      },
+      "protection_step_down": {
+        "name": "Protection pas de baisse"
+      },
+      "protection_step_up": {
+        "name": "Protection pas de remontée"
+      },
+      "protection_min_limit": {
+        "name": "Protection limite la plus basse"
+      },
+      "protection_max_limit": {
+        "name": "Protection limite la plus haute"
+      },
+      "protection_interval": {
+        "name": "Protection intervalle de vérification"
       }
     },
     "switch": {
@@ -186,19 +209,21 @@
       },
       "protection": {
         "title": "Protection anti-surtension",
-        "description": "Les onduleurs se coupent en général vers **253 V** ; la tension monte d'environ **3,5 V par kW injecté**.\n\nValeurs conseillées (celles par défaut) : baisse à **249 V**, remontée à **245 V**, pas de **100 W**, toutes les **120 s**, jamais sous **500 W**.\n\nSi une automatisation règle déjà les limites, coupe-la avant d'activer la protection.",
+        "description": "Les onduleurs se coupent en général vers **253 V** ; la tension monte d'environ **3,5 V par kW injecté**.\n\nValeurs conseillées (celles par défaut) : baisse à **249 V**, remontée à **245 V**, baisse de **70 W**, remontée de **30 W**, toutes les **120 s**, jamais sous **500 W**.\n\nSi une automatisation règle déjà les limites, coupe-la avant d'activer la protection.",
         "data": {
           "protection": "Activer la protection anti-surtension",
           "high_voltage": "Baisser les limites à partir de",
           "low_voltage": "Remonter les limites sous",
-          "limit_step": "Pas",
+          "step_down": "Pas de baisse",
+          "step_up": "Pas de remontée",
           "min_limit": "Limite la plus basse",
           "max_limit": "Limite la plus haute",
           "interval": "Vérifier toutes les"
         },
         "data_description": {
           "high_voltage": "Tension AC la plus haute mesurée par les onduleurs en production.",
-          "limit_step": "Changement appliqué à chaque onduleur à chaque vérification.",
+          "step_down": "Retiré de chaque limite à chaque vérification tant que la tension est trop haute.",
+          "step_up": "Rajouté à chaque vérification une fois la tension assez basse : plus petit, pour éviter les oscillations.",
           "interval": "Chaque changement est une commande écrite dans l'onduleur : reste raisonnable."
         }
       },
@@ -248,6 +273,14 @@
         "protection_off": "Protection anti-surtension désactivée",
         "not_loaded": "Intégration arrêtée : recharge-la pour voir les onduleurs."
       }
+    }
+  },
+  "exceptions": {
+    "low_above_high": {
+      "message": "Le seuil bas (remontée) doit être plus bas que le seuil haut (baisse)."
+    },
+    "min_above_max": {
+      "message": "La limite la plus basse ne peut pas dépasser la plus haute."
     }
   }
 }

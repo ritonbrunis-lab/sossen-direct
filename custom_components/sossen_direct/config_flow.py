@@ -27,13 +27,14 @@ from .const import (
     CONF_HIGH_VOLTAGE,
     CONF_INTERVAL,
     CONF_IP_OVERRIDES,
-    CONF_LIMIT_STEP,
     CONF_LOCAL_KEY,
     CONF_LOW_VOLTAGE,
     CONF_MAX_LIMIT,
     CONF_MIN_LIMIT,
     CONF_NAME,
     CONF_PROTECTION,
+    CONF_STEP_DOWN,
+    CONF_STEP_UP,
     CONF_USER_CODE,
     DOMAIN,
     LOCATE_TIMEOUT,
@@ -43,7 +44,13 @@ from .const import (
     parse_addresses,
 )
 from .discovery import SossenDiscovery
-from .protection import async_runtime_texts, format_volts, is_up, protection_settings
+from .protection import (
+    async_runtime_texts,
+    format_volts,
+    is_up,
+    protection_errors,
+    protection_settings,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -98,7 +105,10 @@ def _protection_schema(values: dict) -> vol.Schema:
             vol.Required(CONF_LOW_VOLTAGE, default=values[CONF_LOW_VOLTAGE]): _number(
                 "V", 220, 260, 0.5
             ),
-            vol.Required(CONF_LIMIT_STEP, default=values[CONF_LIMIT_STEP]): _number(
+            vol.Required(CONF_STEP_DOWN, default=values[CONF_STEP_DOWN]): _number(
+                "W", 10, 500, 10
+            ),
+            vol.Required(CONF_STEP_UP, default=values[CONF_STEP_UP]): _number(
                 "W", 10, 500, 10
             ),
             vol.Required(CONF_MIN_LIMIT, default=values[CONF_MIN_LIMIT]): _number(
@@ -120,17 +130,13 @@ def _validate_protection(user_input: dict) -> tuple[dict, dict[str, str]]:
         CONF_PROTECTION: bool(user_input[CONF_PROTECTION]),
         CONF_HIGH_VOLTAGE: float(user_input[CONF_HIGH_VOLTAGE]),
         CONF_LOW_VOLTAGE: float(user_input[CONF_LOW_VOLTAGE]),
-        CONF_LIMIT_STEP: int(user_input[CONF_LIMIT_STEP]),
+        CONF_STEP_DOWN: int(user_input[CONF_STEP_DOWN]),
+        CONF_STEP_UP: int(user_input[CONF_STEP_UP]),
         CONF_MIN_LIMIT: int(user_input[CONF_MIN_LIMIT]),
         CONF_MAX_LIMIT: int(user_input[CONF_MAX_LIMIT]),
         CONF_INTERVAL: int(user_input[CONF_INTERVAL]),
     }
-    errors: dict[str, str] = {}
-    if values[CONF_LOW_VOLTAGE] >= values[CONF_HIGH_VOLTAGE]:
-        errors[CONF_LOW_VOLTAGE] = "low_above_high"
-    if values[CONF_MIN_LIMIT] > values[CONF_MAX_LIMIT]:
-        errors[CONF_MIN_LIMIT] = "min_above_max"
-    return values, errors
+    return values, protection_errors(values)
 
 
 def _addresses_schema(devices: list[dict], forwarded: str, manual: dict) -> vol.Schema:

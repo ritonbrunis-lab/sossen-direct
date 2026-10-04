@@ -24,7 +24,7 @@ Fais la configuration **en journée** : la nuit, l'onduleur s'éteint complètem
 
 - **Une seule connexion locale par onduleur.** Désactive toute autre intégration qui s'y connecte en local (`sossen`, LocalTuya, Tuya Local). L'intégration Tuya officielle (cloud) ne gêne pas.
 - Si un onduleur n'est jamais trouvé : Options de l'intégration → Réseau et adresses → indique son IP à la main.
-- **Protection anti-surtension** intégrée : les onduleurs se coupent vers 253 V. Toutes les 120 s, si la tension AC la plus haute atteint 249 V, toutes les limites baissent de 100 W (jamais sous 500 W) ; à 245 V ou moins, elles remontent. Réglages dans les options, interrupteur « Protection anti-surtension » sur l'appareil *SOSSEN Direct*. Désactivée par défaut sur une installation antérieure à 0.5.0 : coupe ton automatisation avant de l'activer.
+- **Protection anti-surtension** intégrée : les onduleurs se coupent vers 253 V. Toutes les 120 s, si la tension AC la plus haute atteint 249 V, toutes les limites baissent de 70 W (jamais sous 500 W) ; à 245 V ou moins, elles remontent de 30 W. Réglages dans les options, ou depuis un tableau de bord avec l'interrupteur « Protection anti-surtension » et les entités `number` de configuration (seuils, pas de baisse et de remontée, limites, intervalle) sur l'appareil *SOSSEN Direct*. Une installation 0.5.0 garde son pas unique pour la baisse et la remontée tant qu'ils ne sont pas réglés. Désactivée par défaut sur une installation antérieure à 0.5.0 : coupe ton automatisation avant de l'activer.
 - Options → **État et diagnostic** : liste de contrôle par onduleur (adresse, production, limite, commandes envoyées).
 
 ## Entités par onduleur

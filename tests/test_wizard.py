@@ -17,7 +17,7 @@ from .test_integration import ACCOUNT, INVERTERS, FakeDevice, FakeManager, finis
 
 ID1, ID2 = INVERTERS[0]["device_id"], INVERTERS[1]["device_id"]
 PROTECTION = {"protection": True, "high_voltage": 249, "low_voltage": 245,
-              "limit_step": 100, "min_limit": 500, "max_limit": 1000, "interval": 120}
+              "step_down": 100, "step_up": 100, "min_limit": 500, "max_limit": 1000, "interval": 120}
 
 
 async def _flow_at_names(hass):
@@ -109,11 +109,11 @@ async def test_later_and_protection_validation(hass):
     assert result["errors"] == {"min_limit": "min_above_max"}
     with patch("custom_components.sossen_direct.async_setup_entry", return_value=True):
         result = await hass.config_entries.flow.async_configure(
-            result["flow_id"], {**PROTECTION, "protection": False, "limit_step": 50})
+            result["flow_id"], {**PROTECTION, "protection": False, "step_down": 70, "step_up": 30})
     assert result["type"] is FlowResultType.CREATE_ENTRY
     assert result["options"]["forwarded"] == "192.168.1.41:6668, 192.168.1.41:6669"
     assert result["options"]["protection"] is False
-    assert result["options"]["limit_step"] == 50
+    assert (result["options"]["step_down"], result["options"]["step_up"]) == (70, 30)
 
 
 async def test_same_account_updates_and_keeps_names(hass):
@@ -340,6 +340,124 @@ async def test_protection_french_text(hass):
     ctl = _protection(hass, [a])
     await ctl.async_check()
     assert ctl.last_action == "Bridé à 800 W (249,6 V)"
+
+
+async def test_protection_steps_down_fast_up_slowly(hass):
+    ctl = _protection(hass, [], step_down=70, step_up=30)
+    hot, cool = _inverter(249.5, 1000), _inverter(244.0, 800)
+    ctl.coordinators = [hot]
+    await ctl.async_check()
+    assert hot.power_limit == 930
+    ctl.coordinators = [cool]
+    await ctl.async_check()
+    assert cool.power_limit == 830
+
+
+async def test_protection_legacy_single_step(hass):
+    from custom_components.sossen_direct.protection import protection_settings
+
+    # Fresh defaults: 70 W down, 30 W up.
+    assert (protection_settings({})["step_down"], protection_settings({})["step_up"]) == (70, 30)
+    # Options saved by 0.5.0: the single step stands for both directions.
+    legacy = {k: v for k, v in PROTECTION.items() if k not in ("step_down", "step_up")}
+    entry = MockConfigEntry(domain=DOMAIN, data={}, options={**legacy, "limit_step": 50})
+    hot, cool = _inverter(250.0, 900), _inverter(240.0, 700)
+    ctl = OvervoltageProtection(hass, entry, [hot])
+    assert (ctl.settings["step_down"], ctl.settings["step_up"]) == (50, 50)
+    await ctl.async_check()
+    ctl.coordinators = [cool]
+    await ctl.async_check()
+    assert (hot.power_limit, cool.power_limit) == (850, 750)
+    # The new keys win over the legacy one.
+    entry = MockConfigEntry(domain=DOMAIN, data={},
+                            options={**legacy, "limit_step": 50, "step_up": 20})
+    settings = OvervoltageProtection(hass, entry, []).settings
+    assert (settings["step_down"], settings["step_up"]) == (50, 20)
+
+
+NUMBERS = {
+    "number.sossen_direct_protection_high_threshold": "249.0",
+    "number.sossen_direct_protection_low_threshold": "245.0",
+    "number.sossen_direct_protection_step_down": "70",
+    "number.sossen_direct_protection_step_up": "30",
+    "number.sossen_direct_protection_lowest_limit": "500",
+    "number.sossen_direct_protection_highest_limit": "1000",
+    "number.sossen_direct_protection_check_interval": "120",
+}
+
+
+async def test_protection_numbers_update_options_without_reload(hass):
+    from homeassistant.helpers import entity_registry as er
+
+    p = _setup_patches()
+    with p[0], p[1], p[2], p[3], p[4], p[5]:
+        entry = await _loaded_entry(hass, {"protection": True, "limit_step": 50})
+        runtime = hass.data[DOMAIN][entry.entry_id]
+        ctl = runtime["protection"]
+        states = {e: hass.states.get(e) for e in NUMBERS}
+        expected = {**NUMBERS, "number.sossen_direct_protection_step_down": "50",
+                    "number.sossen_direct_protection_step_up": "50"}
+        assert {e: s.state for e, s in states.items() if s} == expected
+        registry = er.async_get(hass)
+        assert all(registry.async_get(e).entity_category == "config" for e in NUMBERS)
+
+        async def set_value(entity_id, value):
+            await hass.services.async_call(
+                "number", "set_value", {"entity_id": entity_id, "value": value},
+                blocking=True)
+            await hass.async_block_till_done()
+
+        await set_value("number.sossen_direct_protection_step_up", 20)
+        await set_value("number.sossen_direct_protection_high_threshold", 250.5)
+        await set_value("number.sossen_direct_protection_check_interval", 300)
+        assert entry.options["step_up"] == 20 and entry.options["high_voltage"] == 250.5
+        assert entry.options["interval"] == 300 and entry.options["limit_step"] == 50
+        # Applied in place: same runtime, timer restarted at the new interval.
+        assert hass.data[DOMAIN][entry.entry_id] is runtime
+        assert ctl._interval == 300 and ctl._unsub_timer is not None
+        assert (ctl.settings["step_down"], ctl.settings["step_up"]) == (50, 20)
+        assert hass.states.get("number.sossen_direct_protection_step_up").state == "20"
+        assert hass.states.get("number.sossen_direct_protection_high_threshold").state == "250.5"
+        assert await hass.config_entries.async_unload(entry.entry_id)
+
+
+async def test_protection_numbers_reject_invalid_combination(hass):
+    import pytest
+    from homeassistant.exceptions import ServiceValidationError
+
+    p = _setup_patches()
+    with p[0], p[1], p[2], p[3], p[4], p[5]:
+        entry = await _loaded_entry(hass, dict(PROTECTION))
+        runtime = hass.data[DOMAIN][entry.entry_id]
+        before = dict(entry.options)
+        # low >= high, from either side.
+        for entity_id, value in (
+            ("number.sossen_direct_protection_low_threshold", 249),
+            ("number.sossen_direct_protection_high_threshold", 240),
+        ):
+            with pytest.raises(ServiceValidationError) as err:
+                await hass.services.async_call(
+                    "number", "set_value", {"entity_id": entity_id, "value": value},
+                    blocking=True)
+            assert err.value.translation_key == "low_above_high"
+            assert "low threshold" in str(err.value)
+        # min > max: lower the highest limit first, then try a higher minimum.
+        await hass.services.async_call(
+            "number", "set_value",
+            {"entity_id": "number.sossen_direct_protection_highest_limit", "value": 800},
+            blocking=True)
+        with pytest.raises(ServiceValidationError) as err:
+            await hass.services.async_call(
+                "number", "set_value",
+                {"entity_id": "number.sossen_direct_protection_lowest_limit", "value": 900},
+                blocking=True)
+        assert err.value.translation_key == "min_above_max"
+        assert "lowest limit" in str(err.value)
+        await hass.async_block_till_done()
+        assert entry.options == {**before, "max_limit": 800}
+        assert hass.data[DOMAIN][entry.entry_id] is runtime
+        assert hass.states.get("number.sossen_direct_protection_lowest_limit").state == "500"
+        assert await hass.config_entries.async_unload(entry.entry_id)
 
 
 async def test_locate_stops_when_all_found_or_timeout(hass, socket_enabled):

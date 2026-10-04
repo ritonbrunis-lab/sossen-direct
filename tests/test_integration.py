@@ -50,6 +50,12 @@ class FakeDevice:
         return {"dps": {"21": _frame()}}
 
 
+def _power_limit_entity(hass) -> str:
+    """First inverter power limit (the hub device has protection numbers)."""
+    return next(s.entity_id for s in hass.states.async_all("number")
+                if s.entity_id.endswith("power_limit"))
+
+
 async def finish_progress(hass, result):
     """Let the network search (progress step) end and return the next step."""
     if result["type"] is FlowResultType.SHOW_PROGRESS:
@@ -89,8 +95,8 @@ async def test_config_flow(hass):
     assert result["step_id"] == "protection"
     with patch("custom_components.sossen_direct.async_setup_entry", return_value=True):
         result = await hass.config_entries.flow.async_configure(result["flow_id"], {
-            "protection": True, "high_voltage": 249, "low_voltage": 245, "limit_step": 100,
-            "min_limit": 500, "max_limit": 1000, "interval": 120})
+            "protection": True, "high_voltage": 249, "low_voltage": 245, "step_down": 70,
+            "step_up": 30, "min_limit": 500, "max_limit": 1000, "interval": 120})
     assert result["type"] is FlowResultType.CREATE_ENTRY
     assert [d["name"] for d in result["data"]["devices"]] == ["Garage", "SOSSEN-2in1-FR 3"]
     assert "username" not in result["data"]
@@ -116,7 +122,11 @@ async def test_setup_reads_inverters(hass):
         assert all(s.state == "650.0" for s in powers)
         energy = [s for s in hass.states.async_all("sensor") if "total_energy" in s.entity_id]
         assert energy and energy[0].state == "1234.5"
-        assert len(hass.states.async_all("number")) == 2
+        limits = [s for s in hass.states.async_all("number")
+                  if s.entity_id.endswith("power_limit")]
+        assert len(limits) == 2
+        # Plus the 7 protection settings on the account-level device.
+        assert len(hass.states.async_all("number")) == 9
         assert await hass.config_entries.async_unload(entry.entry_id)
 
 
@@ -217,7 +227,7 @@ async def test_cloud_fallback_without_lan(hass):
         await hass.async_block_till_done()
         powers = [s for s in hass.states.async_all("sensor") if s.entity_id.endswith("ac_power")]
         assert len(powers) == 2 and all(s.state == "650.0" for s in powers)
-        number = hass.states.async_all("number")[0].entity_id
+        number = _power_limit_entity(hass)
         await hass.services.async_call(
             "number", "set_value", {"entity_id": number, "value": 900}, blocking=True)
         path, body = FakeManager.sent[-1]
@@ -281,7 +291,7 @@ async def test_limit_commands_counted(hass):
          patch("custom_components.sossen_direct.coordinator.LISTEN_WINDOW", 0.05):
         assert await hass.config_entries.async_setup(entry.entry_id)
         await hass.async_block_till_done()
-        number = hass.states.async_all("number")[0].entity_id
+        number = _power_limit_entity(hass)
         for watts in (900, 800):
             await hass.services.async_call(
                 "number", "set_value", {"entity_id": number, "value": watts}, blocking=True)

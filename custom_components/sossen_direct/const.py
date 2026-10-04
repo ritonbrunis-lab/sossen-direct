@@ -27,6 +27,9 @@ CONF_FORWARDED = "forwarded"
 CONF_PROTECTION = "protection"
 CONF_HIGH_VOLTAGE = "high_voltage"
 CONF_LOW_VOLTAGE = "low_voltage"
+CONF_STEP_DOWN = "step_down"
+CONF_STEP_UP = "step_up"
+# Single step of 0.5.0, still read for both steps when they are absent.
 CONF_LIMIT_STEP = "limit_step"
 CONF_MIN_LIMIT = "min_limit"
 CONF_MAX_LIMIT = "max_limit"
@@ -35,11 +38,14 @@ PROTECTION_DEFAULTS = {
     CONF_PROTECTION: False,
     CONF_HIGH_VOLTAGE: 249.0,
     CONF_LOW_VOLTAGE: 245.0,
-    CONF_LIMIT_STEP: 100,
+    CONF_STEP_DOWN: 70,
+    CONF_STEP_UP: 30,
     CONF_MIN_LIMIT: 500,
     CONF_MAX_LIMIT: 1000,
     CONF_INTERVAL: 120,
 }
+# Option keys that only the protection reads (applied without a reload).
+PROTECTION_KEYS = {*PROTECTION_DEFAULTS, CONF_LIMIT_STEP}
 
 # Smart Life account login (same QR flow and app client as the core Tuya
 # integration): it hands back every device with its local_key, so the user

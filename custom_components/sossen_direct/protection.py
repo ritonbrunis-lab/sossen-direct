@@ -3,12 +3,15 @@
 The inverters disconnect from the grid around 253 V, and the voltage they
 measure rises with what they inject (~3.5 V per kW). Every interval, the
 highest AC voltage among the inverters that are up decides: at or above the
-high threshold every limit goes down one step, at or below the low threshold
-it goes back up one step, in between nothing changes. A command is sent only
+high threshold every limit goes down one step (step down), at or below the
+low threshold it goes back up one smaller step (step up), in between nothing
+changes: down fast, up slowly, so it does not oscillate. A command is sent only
 when a limit actually changes (the inverter may store each one in flash).
 
 Replaces the external automation that did the same; options without the
-protection keys (installs older than 0.5.0) keep it disabled.
+protection keys (installs older than 0.5.0) keep it disabled, and the single
+step of 0.5.0 (CONF_LIMIT_STEP) still applies to both directions until the
+two steps are set.
 """
 
 from __future__ import annotations
@@ -19,6 +22,7 @@ import logging
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import CALLBACK_TYPE, HomeAssistant, callback
+from homeassistant.exceptions import ServiceValidationError
 from homeassistant.helpers.event import async_track_time_interval
 from homeassistant.helpers.translation import async_get_translations
 
@@ -30,6 +34,8 @@ from .const import (
     CONF_MAX_LIMIT,
     CONF_MIN_LIMIT,
     CONF_PROTECTION,
+    CONF_STEP_DOWN,
+    CONF_STEP_UP,
     DOMAIN,
     PROTECTION_DEFAULTS,
 )
@@ -39,8 +45,24 @@ _LOGGER = logging.getLogger(__name__)
 
 
 def protection_settings(options: dict) -> dict:
-    """Return the protection settings, defaults filled in."""
-    return {key: options.get(key, default) for key, default in PROTECTION_DEFAULTS.items()}
+    """Return the protection settings, defaults filled in.
+
+    Options saved by 0.5.0 have one CONF_LIMIT_STEP: it stands for both steps.
+    """
+    defaults = dict(PROTECTION_DEFAULTS)
+    if (legacy := options.get(CONF_LIMIT_STEP)) is not None:
+        defaults[CONF_STEP_DOWN] = defaults[CONF_STEP_UP] = legacy
+    return {key: options.get(key, default) for key, default in defaults.items()}
+
+
+def protection_errors(values: dict) -> dict[str, str]:
+    """Inconsistent settings, as {field: translation key}."""
+    errors: dict[str, str] = {}
+    if values[CONF_LOW_VOLTAGE] >= values[CONF_HIGH_VOLTAGE]:
+        errors[CONF_LOW_VOLTAGE] = "low_above_high"
+    if values[CONF_MIN_LIMIT] > values[CONF_MAX_LIMIT]:
+        errors[CONF_MIN_LIMIT] = "min_above_max"
+    return errors
 
 
 def is_up(coordinator: SossenCoordinator) -> bool:
@@ -90,6 +112,22 @@ class OvervoltageProtection:
         return bool(self.settings[CONF_PROTECTION])
 
     @callback
+    def async_set_setting(self, key: str, value: float | bool) -> None:
+        """Store one setting in the options (dashboard number entities).
+
+        The update listener then applies it without reloading the entry.
+        """
+        values = {**self.settings, key: value}
+        if errors := protection_errors(values):
+            raise ServiceValidationError(
+                translation_domain=DOMAIN,
+                translation_key=next(iter(errors.values())),
+            )
+        self.hass.config_entries.async_update_entry(
+            self.entry, options={**self.entry.options, key: value}
+        )
+
+    @callback
     def async_add_listener(self, update: Callable[[], None]) -> CALLBACK_TYPE:
         """Call update whenever the state or the last action changes."""
         self._listeners.append(update)
@@ -131,9 +169,9 @@ class OvervoltageProtection:
             return
         volts = max(c.data["ac_voltage_v"] for c in up)
         if volts >= cfg[CONF_HIGH_VOLTAGE]:
-            action, delta = "lowered", -int(cfg[CONF_LIMIT_STEP])
+            action, delta = "lowered", -int(cfg[CONF_STEP_DOWN])
         elif volts <= cfg[CONF_LOW_VOLTAGE]:
-            action, delta = "raised", int(cfg[CONF_LIMIT_STEP])
+            action, delta = "raised", int(cfg[CONF_STEP_UP])
         else:
             return
         changed: list[int] = []

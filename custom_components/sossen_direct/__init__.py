@@ -18,7 +18,7 @@ from .const import (
     CONF_TOKEN_INFO,
     DOMAIN,
     PLATFORMS,
-    PROTECTION_DEFAULTS,
+    PROTECTION_KEYS,
     keep_names,
     parse_addresses,
 )
@@ -109,7 +109,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
 def _session_options(entry: ConfigEntry) -> dict:
     """Options that need new inverter sessions (addresses), not protection."""
-    return {k: v for k, v in entry.options.items() if k not in PROTECTION_DEFAULTS}
+    return {k: v for k, v in entry.options.items() if k not in PROTECTION_KEYS}
 
 
 async def _async_reload(hass: HomeAssistant, entry: ConfigEntry) -> None:

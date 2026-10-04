@@ -45,19 +45,21 @@
       },
       "protection": {
         "title": "Overvoltage protection",
-        "description": "Inverters typically disconnect from the grid around **253 V**, and the voltage rises by about **3.5 V per kW injected**. The protection lowers every power limit a little before that, and raises it back when the voltage drops.\n\nRecommended values (the defaults): lower at **249 V**, raise at **245 V**, by steps of **100 W**, every **120 s**, never below **500 W**.\n\nYou can change all this later in the integration options, or turn it on/off with its switch.",
+        "description": "Inverters typically disconnect from the grid around **253 V**, and the voltage rises by about **3.5 V per kW injected**. The protection lowers every power limit a little before that, and raises it back when the voltage drops.\n\nRecommended values (the defaults): lower at **249 V**, raise at **245 V**, down by **70 W**, back up by **30 W**, every **120 s**, never below **500 W**.\n\nYou can change all this later in the integration options, or turn it on/off with its switch.",
         "data": {
           "protection": "Enable the overvoltage protection",
           "high_voltage": "Lower the limits from",
           "low_voltage": "Raise the limits back below",
-          "limit_step": "Step",
+          "step_down": "Step down",
+          "step_up": "Step up",
           "min_limit": "Lowest limit",
           "max_limit": "Highest limit",
           "interval": "Check every"
         },
         "data_description": {
           "high_voltage": "Highest AC voltage measured by the producing inverters.",
-          "limit_step": "Change applied to every inverter at each check.",
+          "step_down": "Removed from every limit at each check while the voltage is too high.",
+          "step_up": "Added back at each check once the voltage is low enough: smaller, so it does not oscillate.",
           "interval": "Each change is a command written to the inverter: keep it reasonable."
         }
       }
@@ -160,6 +162,27 @@
     "number": {
       "power_limit": {
         "name": "Power Limit"
+      },
+      "protection_high_voltage": {
+        "name": "Protection high threshold"
+      },
+      "protection_low_voltage": {
+        "name": "Protection low threshold"
+      },
+      "protection_step_down": {
+        "name": "Protection step down"
+      },
+      "protection_step_up": {
+        "name": "Protection step up"
+      },
+      "protection_min_limit": {
+        "name": "Protection lowest limit"
+      },
+      "protection_max_limit": {
+        "name": "Protection highest limit"
+      },
+      "protection_interval": {
+        "name": "Protection check interval"
       }
     },
     "switch": {
@@ -186,19 +209,21 @@
       },
       "protection": {
         "title": "Overvoltage protection",
-        "description": "Inverters typically disconnect around **253 V**; the voltage rises by about **3.5 V per kW injected**.\n\nRecommended values (the defaults): lower at **249 V**, raise at **245 V**, steps of **100 W**, every **120 s**, never below **500 W**.\n\nIf an automation already adjusts the limits, turn it off before enabling this.",
+        "description": "Inverters typically disconnect around **253 V**; the voltage rises by about **3.5 V per kW injected**.\n\nRecommended values (the defaults): lower at **249 V**, raise at **245 V**, down by **70 W**, up by **30 W**, every **120 s**, never below **500 W**.\n\nIf an automation already adjusts the limits, turn it off before enabling this.",
         "data": {
           "protection": "Enable the overvoltage protection",
           "high_voltage": "Lower the limits from",
           "low_voltage": "Raise the limits back below",
-          "limit_step": "Step",
+          "step_down": "Step down",
+          "step_up": "Step up",
           "min_limit": "Lowest limit",
           "max_limit": "Highest limit",
           "interval": "Check every"
         },
         "data_description": {
           "high_voltage": "Highest AC voltage measured by the producing inverters.",
-          "limit_step": "Change applied to every inverter at each check.",
+          "step_down": "Removed from every limit at each check while the voltage is too high.",
+          "step_up": "Added back at each check once the voltage is low enough: smaller, so it does not oscillate.",
           "interval": "Each change is a command written to the inverter: keep it reasonable."
         }
       },
@@ -248,6 +273,14 @@
         "protection_off": "Overvoltage protection off",
         "not_loaded": "Integration not running: reload it to see the inverters."
       }
+    }
+  },
+  "exceptions": {
+    "low_above_high": {
+      "message": "The low threshold (raise back) must be lower than the high threshold (lower)."
+    },
+    "min_above_max": {
+      "message": "The lowest limit must not exceed the highest limit."
     }
   }
 }
