@@ -43,7 +43,8 @@ from .const import (
 
 _LOGGER = logging.getLogger(__name__)
 
-SWEEP_CONNECT_TIMEOUT = 0.6
+# Wi-Fi devices in power save can take over a second to answer a SYN.
+SWEEP_CONNECT_TIMEOUT = 2.0
 SWEEP_CONCURRENCY = 64
 
 
@@ -236,9 +237,9 @@ class SossenDiscovery:
                 h for h in await asyncio.gather(*(is_open(h) for h in hosts))
                 if h and h not in known
             ]
-            _LOGGER.debug(
-                "Sweep: %d hosts with port %s open, %d inverters to place",
-                len(candidates), TUYA_PORT, len(missing),
+            _LOGGER.info(
+                "Sweep: port %s open on %s, %d inverters to place",
+                TUYA_PORT, ", ".join(candidates) or "no host", len(missing),
             )
             for dev_id in missing:
                 for host in list(candidates):
@@ -250,3 +251,5 @@ class SossenDiscovery:
                         self._ips[dev_id] = host
                         candidates.remove(host)
                         break
+                else:
+                    _LOGGER.debug("Inverter %s: no host accepted its key", dev_id)
