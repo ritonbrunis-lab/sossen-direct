@@ -408,6 +408,9 @@ class SossenCoordinator(DataUpdateCoordinator):
             success = await self._locked_job(self._sync_set_power_limit, watts)
         if success:
             self._power_limit = watts
+            # The command reply interrupts the pushed stream: re-arm it on
+            # the next cycle instead of waiting ARM_AFTER_SILENCE.
+            self._last_push = 0.0
             # Persist last set value so it survives restarts
             limits = {**self.entry.data.get(POWER_LIMITS, {}), self._device_id: watts}
             new_data = {**self.entry.data, POWER_LIMITS: limits}
