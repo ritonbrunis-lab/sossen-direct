@@ -19,6 +19,8 @@ Fais la configuration **en journée** : la nuit, l'onduleur s'éteint complètem
 
 ## À savoir
 
+- Si un onduleur est introuvable sur le réseau local (par exemple derrière un second routeur Wi-Fi qui fait du NAT), ses données sont lues automatiquement via le cloud Smart Life (moins réactif et dépendant d'Internet). Dès qu'il redevient joignable en local, l'intégration repasse en local toute seule.
+
 - **Une seule connexion locale par onduleur.** Désactive toute autre intégration qui s'y connecte en local (`sossen`, LocalTuya, Tuya Local). L'intégration Tuya officielle (cloud) ne gêne pas.
 - Si un onduleur n'est jamais trouvé : Options de l'intégration → indique son IP à la main.
 

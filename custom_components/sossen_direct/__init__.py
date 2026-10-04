@@ -18,6 +18,7 @@ from .const import (
     DOMAIN,
     PLATFORMS,
 )
+from .cloudlink import CloudLink
 from .coordinator import SossenCoordinator
 from .discovery import SossenDiscovery
 
@@ -65,8 +66,18 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     )
     await discovery.async_start()
 
+    # Cloud fallback for inverters the LAN cannot reach (second router, NAT).
+    cloud: CloudLink | None = CloudLink(
+        hass, entry, [d[CONF_DEVICE_ID] for d in devices]
+    )
+    try:
+        await hass.async_add_executor_job(cloud.start)
+    except Exception as err:  # noqa: BLE001
+        _LOGGER.warning("Smart Life cloud fallback unavailable: %s", err)
+        cloud = None
+
     coordinators = [
-        SossenCoordinator(hass, entry, device, discovery) for device in devices
+        SossenCoordinator(hass, entry, device, discovery, cloud) for device in devices
     ]
     await asyncio.gather(
         *(c.async_config_entry_first_refresh() for c in coordinators)
@@ -74,6 +85,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     hass.data.setdefault(DOMAIN, {})[entry.entry_id] = {
         "discovery": discovery,
+        "cloud": cloud,
         "coordinators": coordinators,
         "options": dict(entry.options),
     }
@@ -102,4 +114,6 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         for coordinator in runtime["coordinators"]:
             await coordinator.async_shutdown()
         await runtime["discovery"].async_stop()
+        if runtime["cloud"] is not None:
+            await hass.async_add_executor_job(runtime["cloud"].stop)
     return unload_ok

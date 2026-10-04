@@ -144,3 +144,61 @@ async def test_sweep_matches_by_handshake(hass, socket_enabled):
         await disc.async_sweep()
     server.close()
     assert disc.get_ip("bf73c00c73c6b6f5f8oirs") == "127.0.0.1"
+
+
+class FakeCloudDevice:
+    def __init__(self, dev_id):
+        self.id = dev_id
+        self.online = True
+        self.local_strategy = {19: {"status_code": "arm"}, 21: {"status_code": "data"},
+                               24: {"status_code": "cmd"}}
+        self.status = {"data": _frame()}
+        self.function = {}
+
+
+class FakeManager:
+    sent: list = []
+
+    def __init__(self, *args):
+        self.device_map = {}
+        self.mq = None
+        self.customer_api = self
+
+    def update_device_cache(self):
+        self.device_map = {d["device_id"]: FakeCloudDevice(d["device_id"]) for d in INVERTERS}
+        self.device_map["unrelated"] = FakeCloudDevice("unrelated")
+
+    def refresh_mq(self):
+        pass
+
+    def send_commands(self, dev_id, commands):
+        pass
+
+    def get(self, *args):
+        return {"success": False}
+
+    def post(self, path, params, body):
+        FakeManager.sent.append((path, body))
+        return {"success": True}
+
+
+async def test_cloud_fallback_without_lan(hass):
+    entry = MockConfigEntry(domain=DOMAIN, data={**ACCOUNT, "devices": INVERTERS},
+                            unique_id="uid1")
+    entry.add_to_hass(hass)
+    with patch("custom_components.sossen_direct.fetch_inverters",
+               side_effect=RuntimeError("offline")), \
+         patch.object(SossenDiscovery, "async_start", return_value=None), \
+         patch.object(SossenDiscovery, "get_ip", return_value=None), \
+         patch("custom_components.sossen_direct.cloudlink.Manager", FakeManager):
+        assert await hass.config_entries.async_setup(entry.entry_id)
+        await hass.async_block_till_done()
+        powers = [s for s in hass.states.async_all("sensor") if s.entity_id.endswith("ac_power")]
+        assert len(powers) == 2 and all(s.state == "650.0" for s in powers)
+        number = hass.states.async_all("number")[0].entity_id
+        await hass.services.async_call(
+            "number", "set_value", {"entity_id": number, "value": 900}, blocking=True)
+        path, body = FakeManager.sent[-1]
+        assert path.endswith("/commands") and body["commands"][0]["code"] == "cmd"
+        assert hass.states.get(number).state == "900"
+        assert await hass.config_entries.async_unload(entry.entry_id)

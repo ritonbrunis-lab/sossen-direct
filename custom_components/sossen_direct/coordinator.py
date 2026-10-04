@@ -39,6 +39,7 @@ from .const import (
     TUYA_PORT,
     WARMUP_POLLS,
 )
+from .cloudlink import CloudLink
 from .discovery import SossenDiscovery
 from .protocol import build_set_power_payload, decode_payload, decode_records
 
@@ -63,6 +64,7 @@ class SossenCoordinator(DataUpdateCoordinator):
         entry: ConfigEntry,
         device: dict,
         discovery: SossenDiscovery,
+        cloud: CloudLink | None = None,
     ) -> None:
         """Initialize the coordinator."""
         self._poll_interval = DEFAULT_POLL_INTERVAL
@@ -76,6 +78,8 @@ class SossenCoordinator(DataUpdateCoordinator):
         self.entry = entry
         self.device_info_data = device
         self._discovery = discovery
+        self._cloud = cloud
+        self.via_cloud: bool = False
         self._device_id = device[CONF_DEVICE_ID]
         self._local_key = device[CONF_LOCAL_KEY]
         self._device: tinytuya.Device | None = None
@@ -263,8 +267,48 @@ class SossenCoordinator(DataUpdateCoordinator):
             self.is_powered_off = True
             self.update_interval = timedelta(seconds=OFF_POLL_INTERVAL)
 
+    def _use_cloud(self) -> bool:
+        """Read through the cloud while the inverter has no LAN address."""
+        return (
+            self._cloud is not None
+            and self._discovery.get_ip(self._device_id) is None
+        )
+
+    async def _async_update_from_cloud(self) -> dict:
+        """Take the latest frame the inverter reported to the cloud."""
+        if not self.via_cloud:
+            _LOGGER.info(
+                "Inverter %s not found on the LAN, reading it through the cloud",
+                self._device_id,
+            )
+            self.via_cloud = True
+            self.is_powered_off = False
+            self.update_interval = timedelta(seconds=self._poll_interval)
+        cloud = self._cloud
+        try:
+            await self.hass.async_add_executor_job(cloud.poll)
+            await self.hass.async_add_executor_job(cloud.arm_if_quiet, self._device_id)
+        except Exception as err:  # noqa: BLE001
+            _LOGGER.debug("Cloud refresh failed: %s", err)
+        if self._limit_read_pending:
+            limit = cloud.power_limit(self._device_id)
+            if limit is not None:
+                self._power_limit = limit
+                self._limit_read_pending = False
+        frame = cloud.frame(self._device_id)
+        if frame is not None:
+            return frame
+        if not cloud.online(self._device_id):
+            return self._build_off_data()
+        return self.data if self.data is not None else self._build_off_data()
+
     async def _async_update_data(self) -> dict:
         """Fetch data from the inverter, deducing on/off from the network."""
+        if self._use_cloud():
+            return await self._async_update_from_cloud()
+        if self.via_cloud:
+            _LOGGER.info("Inverter %s found on the LAN, leaving the cloud", self._device_id)
+            self.via_cloud = False
         if self.is_powered_off:
             # Only a light TCP probe while off — no full protocol attempts.
             if not await self.hass.async_add_executor_job(self._sync_probe):
@@ -354,7 +398,12 @@ class SossenCoordinator(DataUpdateCoordinator):
 
     async def async_set_power_limit(self, watts: int) -> None:
         """Set the inverter power limit."""
-        success = await self._locked_job(self._sync_set_power_limit, watts)
+        if self._use_cloud():
+            success = await self.hass.async_add_executor_job(
+                self._cloud.set_power_limit, self._device_id, watts
+            )
+        else:
+            success = await self._locked_job(self._sync_set_power_limit, watts)
         if success:
             self._power_limit = watts
             # Persist last set value so it survives restarts
