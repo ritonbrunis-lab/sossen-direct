@@ -2,8 +2,8 @@
   "config": {
     "step": {
       "user": {
-        "title": "SOSSEN Direct",
-        "description": "Connexion à ton compte Smart Life (ou PowerHome), uniquement pour récupérer la liste des micro-onduleurs et leurs clés locales. Les données passent ensuite en direct sur ton réseau, sans le cloud.\n\nCode utilisateur : dans l'app Smart Life → Moi → ⚙️ Paramètres → Compte et sécurité → Code utilisateur.\n\n{msg}",
+        "title": "Bienvenue dans SOSSEN Direct",
+        "description": "Tes micro-onduleurs SOSSEN dans Home Assistant, lus **en local** toutes les ~5 s, avec leur limite de puissance et une protection anti-surtension intégrée.\n\n**Il te faut :**\n- ton **code utilisateur** Smart Life (ou PowerHome) : app → Moi → ⚙️ Paramètres → Compte et sécurité → Code utilisateur\n- ton **téléphone** pour scanner un QR code\n- les onduleurs **allumés** : fais-le en journée, ils s'éteignent la nuit\n\nLe compte sert uniquement à récupérer les onduleurs et leurs clés locales ; les données passent ensuite en direct sur ton réseau, sans le cloud.\n\n{msg}",
         "data": {
           "user_code": "Code utilisateur"
         }
@@ -12,14 +12,64 @@
         "title": "Scanne le QR code",
         "description": "Dans l'app Smart Life : Moi → icône de scan en haut à droite, scanne ce code et confirme la connexion. Clique ensuite sur Valider."
       },
-      "confirm": {
-        "title": "Micro-onduleurs trouvés",
-        "description": "{count} micro-onduleur(s) SOSSEN trouvé(s) :\n{names}\n\nLeur adresse sur ton réseau est trouvée automatiquement. Les mesures apparaissent quand ils produisent (en journée), 2 à 3 minutes après le démarrage."
+      "names": {
+        "title": "Nomme tes onduleurs",
+        "description": "{count} micro-onduleur(s) SOSSEN trouvé(s). Donne à chacun un nom parlant (ex. Toit garage, Jardin) : ce sera le nom de l'appareil dans Home Assistant."
+      },
+      "network": {
+        "title": "Recherche de tes onduleurs"
+      },
+      "network_ok": {
+        "title": "Tous les onduleurs sont trouvés",
+        "description": "{found}/{count} onduleur(s) ont répondu sur ton réseau :\n\n{lines}\n\nEnsuite : la protection anti-surtension."
+      },
+      "network_missing": {
+        "title": "Certains onduleurs sont introuvables",
+        "description": "{found}/{count} onduleur(s) ont répondu (✗ = pas trouvé) :\n\n{lines}\n\nUn onduleur reste introuvable quand il est éteint (nuit, pas de soleil) ou derrière un autre routeur.",
+        "menu_options": {
+          "behind_router": "Ils sont derrière un autre routeur (redirection de ports)",
+          "manual": "Saisir leur adresse à la main",
+          "later": "Continuer : ils sont éteints, recherche automatique plus tard"
+        }
+      },
+      "behind_router": {
+        "title": "Onduleurs derrière un autre routeur",
+        "description": "Si les onduleurs sont sur le Wi-Fi d'un second routeur (répéteur en mode routeur, NAT), Home Assistant ne les voit pas. Sur ce routeur :\n\n1. **Réserve une IP** pour chaque onduleur (bail DHCP fixe).\n2. Crée **une redirection de port TCP par onduleur** : port externe 6668 → port 6668 du 1er onduleur, port externe 6669 → port 6668 du 2e, etc.\n3. Indique ci-dessous l'adresse du routeur avec ces ports, séparées par des virgules (ex. `192.168.1.41:6668, 192.168.1.41:6669`). Chaque onduleur est reconnu par sa clé, l'ordre n'a pas d'importance.\n\nRésultat actuel :\n\n{lines}",
+        "data": {
+          "forwarded": "Adresses redirigées (IP:port, séparées par des virgules)"
+        }
+      },
+      "manual": {
+        "title": "Adresses des onduleurs",
+        "description": "Adresse de chaque onduleur : IP (ex. `192.168.1.50`) ou IP:port. Laisse vide pour la détection automatique. Pense à réserver ces IP dans le DHCP de ta box pour qu'elles ne changent pas.\n\nRésultat actuel :\n\n{lines}"
+      },
+      "protection": {
+        "title": "Protection anti-surtension",
+        "description": "Les onduleurs se coupent en général vers **253 V**, et la tension monte d'environ **3,5 V par kW injecté**. La protection baisse un peu toutes les limites avant d'en arriver là, puis les remonte quand la tension redescend.\n\nValeurs conseillées (celles par défaut) : baisse à **249 V**, remontée à **245 V**, par pas de **100 W**, toutes les **120 s**, jamais sous **500 W**.\n\nTu pourras tout changer plus tard dans les options de l'intégration, ou l'activer/couper avec son interrupteur.",
+        "data": {
+          "protection": "Activer la protection anti-surtension",
+          "high_voltage": "Baisser les limites à partir de",
+          "low_voltage": "Remonter les limites sous",
+          "limit_step": "Pas",
+          "min_limit": "Limite la plus basse",
+          "max_limit": "Limite la plus haute",
+          "interval": "Vérifier toutes les"
+        },
+        "data_description": {
+          "high_voltage": "Tension AC la plus haute mesurée par les onduleurs en production.",
+          "limit_step": "Changement appliqué à chaque onduleur à chaque vérification.",
+          "interval": "Chaque changement est une commande écrite dans l'onduleur : reste raisonnable."
+        }
       }
+    },
+    "progress": {
+      "locate": "Recherche de tes onduleurs sur le réseau (jusqu'à {seconds} s) : annonce, puis balayage du réseau local. Chacun est reconnu par sa clé."
     },
     "error": {
       "login_error": "Code utilisateur refusé : {msg}",
-      "scan_error": "Le QR code n'a pas été validé dans l'app. Un nouveau code est affiché, réessaie."
+      "scan_error": "Le QR code n'a pas été validé dans l'app. Un nouveau code est affiché, réessaie.",
+      "low_above_high": "Le seuil de remontée doit être plus bas que le seuil de baisse.",
+      "min_above_max": "La limite la plus basse ne peut pas dépasser la plus haute."
     },
     "abort": {
       "already_configured": "Ce compte est déjà configuré, ses onduleurs et clés ont été mis à jour.",
@@ -102,22 +152,101 @@
       },
       "limit_commands": {
         "name": "Commandes de limite envoyées"
+      },
+      "protection_last_action": {
+        "name": "Dernière action anti-surtension"
       }
     },
     "number": {
       "power_limit": {
         "name": "Limite de puissance"
       }
+    },
+    "switch": {
+      "overvoltage_protection": {
+        "name": "Protection anti-surtension"
+      }
     }
   },
   "options": {
     "step": {
       "init": {
-        "title": "Adresses IP (facultatif)",
-        "description": "Laisse vide pour une détection automatique.\n\nOnduleurs derrière un autre routeur : crée sur ce routeur une redirection de port par onduleur vers son port 6668, puis indique ces adresses ci-dessous, séparées par des virgules (ex. 192.168.1.41:6668, 192.168.1.41:6669). Chaque onduleur est reconnu automatiquement.\n\nAdresse fixe d'un onduleur précis (IP ou IP:port) :\n{names}",
+        "title": "SOSSEN Direct",
+        "menu_options": {
+          "status": "État et diagnostic",
+          "protection": "Protection anti-surtension",
+          "power": "Limites de puissance",
+          "network": "Réseau et adresses",
+          "names": "Noms des onduleurs"
+        }
+      },
+      "status": {
+        "title": "État",
+        "description": "{checklist}\n\nRapport complet : menu ⋮ de l'intégration → **Télécharger les diagnostics** (les clés y sont masquées)."
+      },
+      "protection": {
+        "title": "Protection anti-surtension",
+        "description": "Les onduleurs se coupent en général vers **253 V** ; la tension monte d'environ **3,5 V par kW injecté**.\n\nValeurs conseillées (celles par défaut) : baisse à **249 V**, remontée à **245 V**, pas de **100 W**, toutes les **120 s**, jamais sous **500 W**.\n\nSi une automatisation règle déjà les limites, coupe-la avant d'activer la protection.",
+        "data": {
+          "protection": "Activer la protection anti-surtension",
+          "high_voltage": "Baisser les limites à partir de",
+          "low_voltage": "Remonter les limites sous",
+          "limit_step": "Pas",
+          "min_limit": "Limite la plus basse",
+          "max_limit": "Limite la plus haute",
+          "interval": "Vérifier toutes les"
+        },
+        "data_description": {
+          "high_voltage": "Tension AC la plus haute mesurée par les onduleurs en production.",
+          "limit_step": "Changement appliqué à chaque onduleur à chaque vérification.",
+          "interval": "Chaque changement est une commande écrite dans l'onduleur : reste raisonnable."
+        }
+      },
+      "power": {
+        "title": "Limites de puissance",
+        "description": "Fixe une limite pour **tous** les onduleurs, ou laisse vide et règle chacun en dessous. Seules les valeurs modifiées sont envoyées.\n\nTant que la protection anti-surtension est active, c'est elle qui ajuste ces limites.",
+        "data": {
+          "all": "Tous les onduleurs"
+        }
+      },
+      "network": {
+        "title": "Réseau et adresses",
+        "description": "Laisse vide pour une détection automatique.\n\n**Onduleurs derrière un autre routeur :** réserve leur IP dans le DHCP de ce routeur et crée une redirection de port TCP par onduleur (ports externes 6668, 6669… → port 6668 de chaque onduleur), puis indique les adresses du routeur ci-dessous (ex. `192.168.1.41:6668, 192.168.1.41:6669`). Chaque onduleur est reconnu par sa clé.\n\n**Adresse fixe** d'un onduleur précis (IP ou IP:port) : dans son propre champ.",
         "data": {
           "forwarded": "Adresses redirigées (IP:port, séparées par des virgules)"
         }
+      },
+      "names": {
+        "title": "Noms des onduleurs",
+        "description": "Les noms des appareils dans Home Assistant. Les identifiants des entités ne changent pas."
+      }
+    },
+    "error": {
+      "low_above_high": "Le seuil de remontée doit être plus bas que le seuil de baisse.",
+      "min_above_max": "La limite la plus basse ne peut pas dépasser la plus haute."
+    },
+    "abort": {
+      "not_loaded": "L'intégration ne tourne pas : recharge-la puis réessaie."
+    }
+  },
+  "selector": {
+    "runtime": {
+      "options": {
+        "lowered": "Bridé à {limit} W ({voltage} V)",
+        "raised": "Relâché à {limit} W ({voltage} V)",
+        "keys_ok": "Clés Smart Life présentes pour {count} onduleur(s)",
+        "keys_missing": "Clé Smart Life manquante : {names} (ajoute à nouveau l'intégration pour les relire)",
+        "lan": "réseau local",
+        "forwarded": "port redirigé",
+        "manual": "adresse manuelle",
+        "cloud": "introuvable en local, lu via le cloud Smart Life",
+        "not_found": "pas encore trouvé sur le réseau",
+        "producing": "produit {power} W à {voltage} V",
+        "off": "éteint (nuit)",
+        "limit": "limite {limit} W, {count} commande(s) envoyée(s)",
+        "protection_on": "Protection anti-surtension active : baisse à {high} V, remontée à {low} V",
+        "protection_off": "Protection anti-surtension désactivée",
+        "not_loaded": "Intégration arrêtée : recharge-la pour voir les onduleurs."
       }
     }
   }

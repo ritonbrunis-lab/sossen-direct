@@ -2,8 +2,8 @@
   "config": {
     "step": {
       "user": {
-        "title": "SOSSEN Direct",
-        "description": "Log in to your Smart Life (or PowerHome) account, only to fetch the inverters and their local keys. Data then flows locally over your LAN, not through the cloud.\n\nUser code: Smart Life app → Me → ⚙️ Settings → Account and Security → User Code.\n\n{msg}",
+        "title": "Welcome to SOSSEN Direct",
+        "description": "Your SOSSEN inverters in Home Assistant, read **locally** every ~5 s, with their power limit and a built-in overvoltage protection.\n\n**You need:**\n- your Smart Life (or PowerHome) **user code**: app → Me → ⚙️ Settings → Account and Security → User Code\n- your **phone** to scan a QR code\n- the inverters **powered on**: set up in daytime, they switch off at night\n\nThe account is only used to fetch the inverters and their local keys; data then flows over your LAN, not through the cloud.\n\n{msg}",
         "data": {
           "user_code": "User code"
         }
@@ -12,14 +12,64 @@
         "title": "Scan the QR code",
         "description": "In the Smart Life app: Me → scan icon (top right), scan this code and confirm the login. Then press Submit."
       },
-      "confirm": {
-        "title": "Inverters found",
-        "description": "{count} SOSSEN inverter(s) found:\n{names}\n\nTheir LAN address is discovered automatically. Readings appear while they produce (daytime), 2-3 minutes after start."
+      "names": {
+        "title": "Name your inverters",
+        "description": "{count} SOSSEN inverter(s) found. Give each one a name you will recognise (e.g. Garage roof, Garden). These are the device names in Home Assistant."
+      },
+      "network": {
+        "title": "Looking for your inverters"
+      },
+      "network_ok": {
+        "title": "All inverters found",
+        "description": "{found}/{count} inverter(s) answered on the network:\n\n{lines}\n\nNext: the overvoltage protection."
+      },
+      "network_missing": {
+        "title": "Some inverters were not found",
+        "description": "{found}/{count} inverter(s) answered (✗ = not found):\n\n{lines}\n\nAn inverter is not found when it is off (night, no sun) or behind another router.",
+        "menu_options": {
+          "behind_router": "They are behind another router (port forwarding)",
+          "manual": "Enter their address by hand",
+          "later": "Continue: they are off, search later automatically"
+        }
+      },
+      "behind_router": {
+        "title": "Inverters behind another router",
+        "description": "When the inverters are on the Wi-Fi of a second router (repeater in router mode, NAT), Home Assistant cannot see them. On that router:\n\n1. **Reserve an IP** for each inverter (DHCP reservation / static lease).\n2. Create **one TCP port-forwarding rule per inverter**: external port 6668 → 1st inverter port 6668, external port 6669 → 2nd inverter port 6668, and so on.\n3. List below the router's address with those ports, comma separated (e.g. `192.168.1.41:6668, 192.168.1.41:6669`). Each inverter is recognised by its key, the order does not matter.\n\nCurrent result:\n\n{lines}",
+        "data": {
+          "forwarded": "Forwarded addresses (IP:port, comma separated)"
+        }
+      },
+      "manual": {
+        "title": "Inverter addresses",
+        "description": "Address of each inverter: IP (e.g. `192.168.1.50`) or IP:port. Leave blank for automatic discovery. Reserve these IPs in your router's DHCP so they do not change.\n\nCurrent result:\n\n{lines}"
+      },
+      "protection": {
+        "title": "Overvoltage protection",
+        "description": "Inverters typically disconnect from the grid around **253 V**, and the voltage rises by about **3.5 V per kW injected**. The protection lowers every power limit a little before that, and raises it back when the voltage drops.\n\nRecommended values (the defaults): lower at **249 V**, raise at **245 V**, by steps of **100 W**, every **120 s**, never below **500 W**.\n\nYou can change all this later in the integration options, or turn it on/off with its switch.",
+        "data": {
+          "protection": "Enable the overvoltage protection",
+          "high_voltage": "Lower the limits from",
+          "low_voltage": "Raise the limits back below",
+          "limit_step": "Step",
+          "min_limit": "Lowest limit",
+          "max_limit": "Highest limit",
+          "interval": "Check every"
+        },
+        "data_description": {
+          "high_voltage": "Highest AC voltage measured by the producing inverters.",
+          "limit_step": "Change applied to every inverter at each check.",
+          "interval": "Each change is a command written to the inverter: keep it reasonable."
+        }
       }
+    },
+    "progress": {
+      "locate": "Looking for your inverters on the network (up to {seconds} s): broadcast, then a scan of the local network. Each one is recognised by its key."
     },
     "error": {
       "login_error": "User code rejected: {msg}",
-      "scan_error": "The QR code was not confirmed in the app. A new code is shown, try again."
+      "scan_error": "The QR code was not confirmed in the app. A new code is shown, try again.",
+      "low_above_high": "The raise-back voltage must be lower than the lowering voltage.",
+      "min_above_max": "The lowest limit must not exceed the highest limit."
     },
     "abort": {
       "already_configured": "This account is already configured; its inverters and keys were updated.",
@@ -102,22 +152,101 @@
       },
       "limit_commands": {
         "name": "Power limit commands sent"
+      },
+      "protection_last_action": {
+        "name": "Overvoltage protection last action"
       }
     },
     "number": {
       "power_limit": {
         "name": "Power Limit"
       }
+    },
+    "switch": {
+      "overvoltage_protection": {
+        "name": "Overvoltage protection"
+      }
     }
   },
   "options": {
     "step": {
       "init": {
-        "title": "IP addresses (optional)",
-        "description": "Leave blank for automatic discovery.\n\nInverters behind another router: forward one port per inverter to its port 6668 on that router, then list those addresses below, comma separated (e.g. 192.168.1.41:6668, 192.168.1.41:6669). Each inverter is recognised automatically.\n\nFixed address of a given inverter (IP or IP:port):\n{names}",
+        "title": "SOSSEN Direct",
+        "menu_options": {
+          "status": "Status and diagnostics",
+          "protection": "Overvoltage protection",
+          "power": "Power limits",
+          "network": "Network and addresses",
+          "names": "Inverter names"
+        }
+      },
+      "status": {
+        "title": "Status",
+        "description": "{checklist}\n\nFull report: integration's ⋮ menu → **Download diagnostics** (keys are redacted)."
+      },
+      "protection": {
+        "title": "Overvoltage protection",
+        "description": "Inverters typically disconnect around **253 V**; the voltage rises by about **3.5 V per kW injected**.\n\nRecommended values (the defaults): lower at **249 V**, raise at **245 V**, steps of **100 W**, every **120 s**, never below **500 W**.\n\nIf an automation already adjusts the limits, turn it off before enabling this.",
+        "data": {
+          "protection": "Enable the overvoltage protection",
+          "high_voltage": "Lower the limits from",
+          "low_voltage": "Raise the limits back below",
+          "limit_step": "Step",
+          "min_limit": "Lowest limit",
+          "max_limit": "Highest limit",
+          "interval": "Check every"
+        },
+        "data_description": {
+          "high_voltage": "Highest AC voltage measured by the producing inverters.",
+          "limit_step": "Change applied to every inverter at each check.",
+          "interval": "Each change is a command written to the inverter: keep it reasonable."
+        }
+      },
+      "power": {
+        "title": "Power limits",
+        "description": "Set one limit for **all** inverters, or leave it blank and set each one below. Only changed values are sent.\n\nWhile the overvoltage protection is on, it keeps adjusting these limits.",
+        "data": {
+          "all": "All inverters"
+        }
+      },
+      "network": {
+        "title": "Network and addresses",
+        "description": "Leave blank for automatic discovery.\n\n**Inverters behind another router:** reserve their IPs in that router's DHCP and create one TCP port-forwarding rule per inverter (external ports 6668, 6669, ... → port 6668 of each inverter), then list the router's addresses below (e.g. `192.168.1.41:6668, 192.168.1.41:6669`). Each inverter is recognised by its key.\n\n**Fixed address** of a given inverter (IP or IP:port): in its own field.",
         "data": {
           "forwarded": "Forwarded addresses (IP:port, comma separated)"
         }
+      },
+      "names": {
+        "title": "Inverter names",
+        "description": "The device names in Home Assistant. Entity IDs do not change."
+      }
+    },
+    "error": {
+      "low_above_high": "The raise-back voltage must be lower than the lowering voltage.",
+      "min_above_max": "The lowest limit must not exceed the highest limit."
+    },
+    "abort": {
+      "not_loaded": "The integration is not running: reload it, then try again."
+    }
+  },
+  "selector": {
+    "runtime": {
+      "options": {
+        "lowered": "Lowered to {limit} W ({voltage} V)",
+        "raised": "Raised to {limit} W ({voltage} V)",
+        "keys_ok": "Smart Life keys present for {count} inverter(s)",
+        "keys_missing": "Smart Life key missing: {names} (add the integration again to refresh)",
+        "lan": "local network",
+        "forwarded": "forwarded port",
+        "manual": "manual address",
+        "cloud": "not found locally, read through the Smart Life cloud",
+        "not_found": "not found on the network yet",
+        "producing": "producing {power} W at {voltage} V",
+        "off": "off (night)",
+        "limit": "limit {limit} W, {count} command(s) sent",
+        "protection_on": "Overvoltage protection on: lowers at {high} V, raises at {low} V",
+        "protection_off": "Overvoltage protection off",
+        "not_loaded": "Integration not running: reload it to see the inverters."
       }
     }
   }

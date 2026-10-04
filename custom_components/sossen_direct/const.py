@@ -20,6 +20,27 @@ CONF_IP_OVERRIDES = "ip_overrides"
 # "host:port" addresses forwarded by another router, matched automatically.
 CONF_FORWARDED = "forwarded"
 
+# Built-in overvoltage protection (entry options). The inverters disconnect
+# from the grid around 253 V, and every kW injected raises the local grid
+# voltage by ~3.5 V: lowering the limits a little before that keeps them on.
+# Options without CONF_PROTECTION (installs older than 0.5.0) leave it off.
+CONF_PROTECTION = "protection"
+CONF_HIGH_VOLTAGE = "high_voltage"
+CONF_LOW_VOLTAGE = "low_voltage"
+CONF_LIMIT_STEP = "limit_step"
+CONF_MIN_LIMIT = "min_limit"
+CONF_MAX_LIMIT = "max_limit"
+CONF_INTERVAL = "interval"
+PROTECTION_DEFAULTS = {
+    CONF_PROTECTION: False,
+    CONF_HIGH_VOLTAGE: 249.0,
+    CONF_LOW_VOLTAGE: 245.0,
+    CONF_LIMIT_STEP: 100,
+    CONF_MIN_LIMIT: 500,
+    CONF_MAX_LIMIT: 1000,
+    CONF_INTERVAL: 120,
+}
+
 # Smart Life account login (same QR flow and app client as the core Tuya
 # integration): it hands back every device with its local_key, so the user
 # never has to visit the Tuya IoT developer platform.
@@ -39,6 +60,9 @@ DISCOVERY_PROBE_EVERY = 30
 # TCP port and identify each inverter by a successful v3.5 handshake.
 SWEEP_AFTER = 90
 SWEEP_EVERY = 600
+# Setup wizard: how long it looks for the inverters before showing a result.
+LOCATE_TIMEOUT = 45
+LOCATE_PROBE_EVERY = 5
 
 # Standard Tuya local TCP port, used to probe whether the inverter is powered.
 TUYA_PORT = 6668
@@ -91,7 +115,7 @@ RECONNECT_AFTER_FAILURES = 18
 # device boots: it needs ~2 min after power-on before answering.
 WARMUP_POLLS = 20
 
-PLATFORMS = [Platform.SENSOR, Platform.NUMBER]
+PLATFORMS = [Platform.SENSOR, Platform.NUMBER, Platform.SWITCH]
 
 # DP IDs for reading (0x1000+ range)
 DP_STATUS = 4096
@@ -144,6 +168,19 @@ def split_address(address: str) -> tuple[str, int]:
     return address.strip(), TUYA_PORT
 
 
+def parse_addresses(text: str | None) -> list[str]:
+    """Split a comma (or semicolon) separated address list."""
+    return [a.strip() for a in (text or "").replace(";", ",").split(",") if a.strip()]
+
+
+def keep_names(inverters: list[dict], stored: list[dict]) -> list[dict]:
+    """Carry the names chosen in Home Assistant over a fresh cloud list."""
+    names = {d[CONF_DEVICE_ID]: d.get(CONF_NAME) for d in stored}
+    for device in inverters:
+        device[CONF_NAME] = names.get(device[CONF_DEVICE_ID]) or device[CONF_NAME]
+    return inverters
+
+
 def build_device_info(device: dict) -> dict:
     """Return the shared device_info dict for all entities of an inverter."""
     model = MODELS.get(device.get(CONF_MODEL, DEFAULT_MODEL), MODELS[DEFAULT_MODEL])
@@ -152,6 +189,16 @@ def build_device_info(device: dict) -> dict:
         "name": device.get(CONF_NAME) or DEVICE_NAME,
         "manufacturer": "SOSSEN",
         "model": model["model"],
+    }
+
+
+def build_hub_info(entry_id: str) -> dict:
+    """Return the device_info of the account-level device (protection)."""
+    return {
+        "identifiers": {(DOMAIN, entry_id)},
+        "name": "SOSSEN Direct",
+        "manufacturer": "SOSSEN",
+        "model": "Protection",
     }
 
 

@@ -16,8 +16,10 @@ from .const import (
     DOMAIN,
     SENSOR_DEFINITIONS,
     build_device_info,
+    build_hub_info,
 )
 from .coordinator import SossenCoordinator
+from .protection import OvervoltageProtection
 
 STATUS_MAP = {
     0: "off",
@@ -41,6 +43,9 @@ async def async_setup_entry(
         entities.append(SossenStatusSensor(coordinator, entry))
         entities.append(SossenRawSensor(coordinator, entry))
         entities.append(SossenLimitCommandsSensor(coordinator, entry))
+    entities.append(
+        SossenProtectionSensor(hass.data[DOMAIN][entry.entry_id]["protection"], entry)
+    )
     async_add_entities(entities)
 
 
@@ -186,3 +191,27 @@ class SossenLimitCommandsSensor(CoordinatorEntity, SensorEntity):
     def native_value(self) -> int:
         """Return the number of accepted power-limit commands."""
         return self.coordinator.limit_commands
+
+
+class SossenProtectionSensor(SensorEntity):
+    """Last action of the overvoltage protection, e.g. "Bridé à 800 W (249,6 V)"."""
+
+    _attr_has_entity_name = True
+    _attr_translation_key = "protection_last_action"
+    _attr_icon = "mdi:flash-alert"
+    _attr_should_poll = False
+
+    def __init__(self, protection: OvervoltageProtection, entry: ConfigEntry) -> None:
+        """Initialize the sensor on the account-level device."""
+        self._protection = protection
+        self._attr_unique_id = f"{entry.entry_id}_protection_last_action"
+        self._attr_device_info = build_hub_info(entry.entry_id)
+
+    async def async_added_to_hass(self) -> None:
+        """Follow the controller."""
+        self.async_on_remove(self._protection.async_add_listener(self.async_write_ha_state))
+
+    @property
+    def native_value(self) -> str | None:
+        """Return the last action, None until the first one."""
+        return self._protection.last_action

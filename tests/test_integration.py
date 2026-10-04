@@ -50,6 +50,14 @@ class FakeDevice:
         return {"dps": {"21": _frame()}}
 
 
+async def finish_progress(hass, result):
+    """Let the network search (progress step) end and return the next step."""
+    if result["type"] is FlowResultType.SHOW_PROGRESS:
+        await hass.async_block_till_done()
+        result = await hass.config_entries.flow.async_configure(result["flow_id"])
+    return result
+
+
 async def test_config_flow(hass):
     result = await hass.config_entries.flow.async_init(
         DOMAIN, context={"source": config_entries.SOURCE_USER})
@@ -64,16 +72,30 @@ async def test_config_flow(hass):
 
     with patch.object(flow._login, "result", return_value=(True, {**ACCOUNT, "username": "eric"})), \
          patch("custom_components.sossen_direct.config_flow.fetch_inverters",
-               return_value=(INVERTERS, None)):
+               return_value=([dict(d) for d in INVERTERS], None)):
         result = await hass.config_entries.flow.async_configure(result["flow_id"], {})
-    assert result["step_id"] == "confirm"
-    assert "SOSSEN-2in1-FR 3" in result["description_placeholders"]["names"]
+    assert result["step_id"] == "names"
+    assert result["description_placeholders"]["count"] == "2"
 
+    found = {d["device_id"]: f"192.168.1.{50 + i}" for i, d in enumerate(INVERTERS)}
+    with patch.object(SossenDiscovery, "async_locate", return_value=found):
+        result = await hass.config_entries.flow.async_configure(
+            result["flow_id"], {"SOSSEN-2in1-FR 2": "Garage", "SOSSEN-2in1-FR 3": " "})
+        result = await finish_progress(hass, result)
+    assert result["step_id"] == "network_ok"
+    assert "192.168.1.51" in result["description_placeholders"]["lines"]
+
+    result = await hass.config_entries.flow.async_configure(result["flow_id"], {})
+    assert result["step_id"] == "protection"
     with patch("custom_components.sossen_direct.async_setup_entry", return_value=True):
-        result = await hass.config_entries.flow.async_configure(result["flow_id"], {})
+        result = await hass.config_entries.flow.async_configure(result["flow_id"], {
+            "protection": True, "high_voltage": 249, "low_voltage": 245, "limit_step": 100,
+            "min_limit": 500, "max_limit": 1000, "interval": 120})
     assert result["type"] is FlowResultType.CREATE_ENTRY
-    assert result["data"]["devices"] == INVERTERS
+    assert [d["name"] for d in result["data"]["devices"]] == ["Garage", "SOSSEN-2in1-FR 3"]
     assert "username" not in result["data"]
+    assert result["options"]["protection"] is True
+    assert result["options"]["ip_overrides"] == {} and result["options"]["forwarded"] == ""
 
 
 async def test_setup_reads_inverters(hass):

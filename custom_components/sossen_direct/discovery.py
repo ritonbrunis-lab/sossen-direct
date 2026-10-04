@@ -36,6 +36,7 @@ from .const import (
     DISCOVERY_PORTS,
     DISCOVERY_PROBE_EVERY,
     DISCOVERY_PROBE_PORT,
+    LOCATE_PROBE_EVERY,
     SWEEP_AFTER,
     SWEEP_EVERY,
     TUYA_PORT,
@@ -128,6 +129,17 @@ class SossenDiscovery:
         if self._ips.pop(device_id, None) is not None:
             _LOGGER.debug("Inverter %s: address unreachable, searching again", device_id)
 
+    def how(self, device_id: str) -> str | None:
+        """Return how an inverter's address was found: manual, forwarded or lan."""
+        ip = self.get_ip(device_id)
+        if ip is None:
+            return None
+        if device_id in self._fixed:
+            return "manual"
+        if ip in self._forwarded:
+            return "forwarded"
+        return "lan"
+
     @callback
     def _on_packet(self, data: bytes, sender: str) -> None:
         try:
@@ -146,6 +158,38 @@ class SossenDiscovery:
 
     async def async_start(self) -> None:
         """Open the UDP listeners and start the probe/sweep loop."""
+        await self._async_listen()
+        self._started = time.monotonic()
+        self._task = self.hass.async_create_background_task(
+            self._loop(), "sossen_direct discovery"
+        )
+
+    async def async_locate(self, timeout: float) -> dict[str, str]:
+        """Search once, for up to timeout seconds (setup wizard).
+
+        Same mechanisms as the background loop, without its patience: probe,
+        forwarded addresses, then the sweep right away, then probes until
+        every inverter is placed. Returns Device ID -> address found.
+        """
+        await self._async_listen()
+        try:
+            async with asyncio.timeout(timeout):
+                await self._send_probe()
+                if self._forwarded:
+                    await self._match(self._forwarded)
+                if self._missing():
+                    await self.async_sweep()
+                while self._missing():
+                    await asyncio.sleep(LOCATE_PROBE_EVERY)
+                    await self._send_probe()
+        except TimeoutError:
+            pass
+        finally:
+            await self.async_stop()
+        return dict(self._ips)
+
+    async def _async_listen(self) -> None:
+        """Open the UDP broadcast listeners (ports already taken are skipped)."""
         loop = asyncio.get_running_loop()
         for port in DISCOVERY_PORTS:
             sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -164,10 +208,6 @@ class SossenDiscovery:
                 lambda: _Protocol(self._on_packet), sock=sock
             )
             self._transports.append(transport)
-        self._started = time.monotonic()
-        self._task = self.hass.async_create_background_task(
-            self._loop(), "sossen_direct discovery"
-        )
 
     async def async_stop(self) -> None:
         """Close listeners and stop the loop."""

@@ -14,6 +14,7 @@ Contrairement aux autres intégrations, **aucune clé à chercher, aucune IP à 
 2. Installe **SOSSEN Direct**, puis redémarre Home Assistant.
 3. Paramètres → Appareils et services → Ajouter → **SOSSEN Direct**.
 4. Saisis ton **code utilisateur** Smart Life (app → Moi → ⚙️ → Compte et sécurité → Code utilisateur), puis scanne le QR code avec l'app.
+5. Nomme tes onduleurs, laisse l'assistant les chercher sur le réseau (≈ 45 s ; s'il en manque : redirection de ports, adresse à la main ou « plus tard »), puis règle la protection anti-surtension.
 
 Fais la configuration **en journée** : la nuit, l'onduleur s'éteint complètement. Les valeurs apparaissent 2 à 3 minutes après le démarrage.
 
@@ -22,7 +23,9 @@ Fais la configuration **en journée** : la nuit, l'onduleur s'éteint complètem
 - Si un onduleur est introuvable sur le réseau local (par exemple derrière un second routeur Wi-Fi qui fait du NAT), ses données sont lues automatiquement via le cloud Smart Life (moins réactif et dépendant d'Internet). Dès qu'il redevient joignable en local, l'intégration repasse en local toute seule.
 
 - **Une seule connexion locale par onduleur.** Désactive toute autre intégration qui s'y connecte en local (`sossen`, LocalTuya, Tuya Local). L'intégration Tuya officielle (cloud) ne gêne pas.
-- Si un onduleur n'est jamais trouvé : Options de l'intégration → indique son IP à la main.
+- Si un onduleur n'est jamais trouvé : Options de l'intégration → Réseau et adresses → indique son IP à la main.
+- **Protection anti-surtension** intégrée : les onduleurs se coupent vers 253 V. Toutes les 120 s, si la tension AC la plus haute atteint 249 V, toutes les limites baissent de 100 W (jamais sous 500 W) ; à 245 V ou moins, elles remontent. Réglages dans les options, interrupteur « Protection anti-surtension » sur l'appareil *SOSSEN Direct*. Désactivée par défaut sur une installation antérieure à 0.5.0 : coupe ton automatisation avant de l'activer.
+- Options → **État et diagnostic** : liste de contrôle par onduleur (adresse, production, limite, commandes envoyées).
 
 ## Entités par onduleur
 
