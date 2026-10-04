@@ -232,3 +232,15 @@ async def test_forwarded_port_override(hass):
         await hass.async_block_till_done()
         assert ("192.168.1.41", 6670) in seen
         assert await hass.config_entries.async_unload(entry.entry_id)
+
+
+async def test_forwarded_addresses_matched_by_key(hass):
+    keys = {d["device_id"]: d["local_key"] for d in INVERTERS}
+    disc = SossenDiscovery(hass, keys, None, ["192.168.1.41:6668", " 192.168.1.41:6669"])
+    owner = {"192.168.1.41:6668": INVERTERS[1]["device_id"],
+             "192.168.1.41:6669": INVERTERS[0]["device_id"]}
+    with patch("custom_components.sossen_direct.discovery._handshake_ok",
+               side_effect=lambda dev, key, addr: owner[addr] == dev):
+        await disc._match(disc._forwarded)
+    assert disc.get_ip(INVERTERS[0]["device_id"]) == "192.168.1.41:6669"
+    assert disc.get_ip(INVERTERS[1]["device_id"]) == "192.168.1.41:6668"

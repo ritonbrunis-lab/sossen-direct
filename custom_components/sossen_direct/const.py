@@ -17,6 +17,8 @@ CONF_MODEL = "model"
 CONF_NAME = "name"
 CONF_DEVICES = "devices"
 CONF_IP_OVERRIDES = "ip_overrides"
+# "host:port" addresses forwarded by another router, matched automatically.
+CONF_FORWARDED = "forwarded"
 
 # Smart Life account login (same QR flow and app client as the core Tuya
 # integration): it hands back every device with its local_key, so the user

@@ -39,6 +39,7 @@ from .const import (
     SWEEP_AFTER,
     SWEEP_EVERY,
     TUYA_PORT,
+    split_address,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -59,7 +60,8 @@ def _probe_payload(own_ip: str) -> bytes:
 
 def _handshake_ok(device_id: str, local_key: str, ip: str) -> bool:
     """Return True if ip answers a v3.5 session handshake with this key."""
-    dev = tinytuya.Device(device_id, ip, local_key, version=3.5)
+    host, port = split_address(ip)
+    dev = tinytuya.Device(device_id, host, local_key, version=3.5, port=port)
     dev.set_socketTimeout(3)
     dev.set_socketRetryLimit(1)
     try:
@@ -89,14 +91,20 @@ class SossenDiscovery:
         hass: HomeAssistant,
         devices: dict[str, str],
         overrides: dict[str, str] | None = None,
+        forwarded: list[str] | None = None,
     ) -> None:
-        """devices maps Device ID -> local key."""
+        """devices maps Device ID -> local key.
+
+        forwarded lists "host:port" addresses (ports forwarded by another
+        router); each is matched to its inverter by the key handshake.
+        """
         self.hass = hass
         self._keys = devices
         self._ips: dict[str, str] = {
             dev_id: ip for dev_id, ip in (overrides or {}).items() if ip
         }
         self._fixed = set(self._ips)
+        self._forwarded = [a.strip() for a in forwarded or [] if a.strip()]
         self._transports: list[asyncio.DatagramTransport] = []
         self._task: asyncio.Task | None = None
         self._sweep_lock = asyncio.Lock()
@@ -166,6 +174,8 @@ class SossenDiscovery:
         while True:
             try:
                 await self._send_probe()
+                if self._forwarded and self._missing():
+                    await self._match(self._forwarded)
                 now = time.monotonic()
                 if (
                     self._missing()
@@ -232,22 +242,27 @@ class SossenDiscovery:
                     writer.close()
                     return host
 
-            known = set(self._ips.values())
             candidates = [
-                h for h in await asyncio.gather(*(is_open(h) for h in hosts))
-                if h and h not in known
+                h for h in await asyncio.gather(*(is_open(h) for h in hosts)) if h
             ]
             _LOGGER.info(
                 "Sweep: port %s open on %s, %d inverters to place",
                 TUYA_PORT, ", ".join(candidates) or "no host", len(missing),
             )
-            for dev_id in missing:
+        await self._match(candidates, "sweep")
+
+    async def _match(self, addresses: list[str], how: str = "forwarded") -> None:
+        """Identify missing inverters among addresses by the key handshake."""
+        async with self._sweep_lock:
+            known = set(self._ips.values())
+            candidates = [a for a in addresses if a not in known]
+            for dev_id in self._missing():
                 for host in list(candidates):
                     ok = await self.hass.async_add_executor_job(
                         _handshake_ok, dev_id, self._keys[dev_id], host
                     )
                     if ok:
-                        _LOGGER.info("Inverter %s found at %s (sweep)", dev_id, host)
+                        _LOGGER.info("Inverter %s found at %s (%s)", dev_id, host, how)
                         self._ips[dev_id] = host
                         candidates.remove(host)
                         break

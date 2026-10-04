@@ -111,7 +111,10 @@
     "step": {
       "init": {
         "title": "IP addresses (optional)",
-        "description": "Leave blank for automatic discovery. Only fill in if an inverter is never found. Format: IP, or IP:port when the inverter sits behind another router with a port forwarded to its port 6668.\n{names}"
+        "description": "Leave blank for automatic discovery.\n\nInverters behind another router: forward one port per inverter to its port 6668 on that router, then list those addresses below, comma separated (e.g. 192.168.1.41:6668, 192.168.1.41:6669). Each inverter is recognised automatically.\n\nFixed address of a given inverter (IP or IP:port):\n{names}",
+        "data": {
+          "forwarded": "Forwarded addresses (IP:port, comma separated)"
+        }
       }
     }
   }

@@ -12,6 +12,7 @@ from .cloud import fetch_inverters
 from .const import (
     CONF_DEVICE_ID,
     CONF_DEVICES,
+    CONF_FORWARDED,
     CONF_IP_OVERRIDES,
     CONF_LOCAL_KEY,
     CONF_TOKEN_INFO,
@@ -63,6 +64,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         hass,
         {d[CONF_DEVICE_ID]: d[CONF_LOCAL_KEY] for d in devices},
         entry.options.get(CONF_IP_OVERRIDES),
+        entry.options.get(CONF_FORWARDED, "").replace(";", ",").split(","),
     )
     await discovery.async_start()
 

@@ -111,7 +111,10 @@
     "step": {
       "init": {
         "title": "Adresses IP (facultatif)",
-        "description": "Laisse vide pour une détection automatique. Remplis seulement si un onduleur n'est jamais trouvé. Format : IP, ou IP:port si l'onduleur est derrière un autre routeur avec une redirection de port vers son port 6668.\n{names}"
+        "description": "Laisse vide pour une détection automatique.\n\nOnduleurs derrière un autre routeur : crée sur ce routeur une redirection de port par onduleur vers son port 6668, puis indique ces adresses ci-dessous, séparées par des virgules (ex. 192.168.1.41:6668, 192.168.1.41:6669). Chaque onduleur est reconnu automatiquement.\n\nAdresse fixe d'un onduleur précis (IP ou IP:port) :\n{names}",
+        "data": {
+          "forwarded": "Adresses redirigées (IP:port, séparées par des virgules)"
+        }
       }
     }
   }

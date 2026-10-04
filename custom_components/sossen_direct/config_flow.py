@@ -16,6 +16,7 @@ from .cloud import QrLogin, fetch_inverters
 from .const import (
     CONF_DEVICE_ID,
     CONF_DEVICES,
+    CONF_FORWARDED,
     CONF_IP_OVERRIDES,
     CONF_NAME,
     CONF_USER_CODE,
@@ -148,7 +149,10 @@ class SossenDirectOptionsFlow(config_entries.OptionsFlow):
                 for d in devices
             }
             return self.async_create_entry(
-                data={CONF_IP_OVERRIDES: {k: v for k, v in overrides.items() if v}}
+                data={
+                    CONF_IP_OVERRIDES: {k: v for k, v in overrides.items() if v},
+                    CONF_FORWARDED: user_input.get(CONF_FORWARDED, "").strip(),
+                }
             )
         schema = {
             vol.Optional(
@@ -157,6 +161,14 @@ class SossenDirectOptionsFlow(config_entries.OptionsFlow):
             ): str
             for d in devices
         }
+        schema[
+            vol.Optional(
+                CONF_FORWARDED,
+                description={
+                    "suggested_value": self.config_entry.options.get(CONF_FORWARDED, "")
+                },
+            )
+        ] = str
         names = "\n".join(f"- {d[CONF_NAME]} : `{d[CONF_DEVICE_ID]}`" for d in devices)
         return self.async_show_form(
             step_id="init",
