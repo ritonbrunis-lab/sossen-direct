@@ -111,7 +111,10 @@ def decode_payload(payload_b64: str) -> dict | None:
     # firmware / other models) so nothing shows a bogus 0.
     ac_units = records.get(DP_ENERGY_AC_UNITS, 0)
     dc_units = records.get(DP_ENERGY_DC_UNITS, 0)
-    if ac_units and dc_units:
+    # On some units (firmware 2in1-FR) 4172 runs ahead of 4174, which would
+    # give an efficiency above 100 %: the DC reading of the pair is then not
+    # what we assumed, so neither value is reported rather than a wrong one.
+    if ac_units and dc_units and ac_units <= dc_units:
         result["conversion_efficiency_lifetime"] = round(
             ac_units / dc_units * 100, 1
         )

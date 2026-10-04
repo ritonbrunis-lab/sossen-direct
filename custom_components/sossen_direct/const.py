@@ -312,7 +312,9 @@ SENSOR_DEFINITIONS = [
         "key": "energy_dc_total_kwh",
         "device_class": SensorDeviceClass.ENERGY,
         "unit": "kWh",
-        "state_class": SensorStateClass.TOTAL_INCREASING,
+        # Derived from a ratio, so it can step back slightly: TOTAL, not
+        # TOTAL_INCREASING, or the recorder sees each dip as a meter reset.
+        "state_class": SensorStateClass.TOTAL,
         "when_off": "retain",
         "entity_category": EntityCategory.DIAGNOSTIC,
     },
