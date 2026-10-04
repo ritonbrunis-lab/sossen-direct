@@ -267,3 +267,29 @@ async def test_limit_commands_counted(hass):
                    if s.entity_id.endswith("limit_commands_sent") or "commandes" in s.entity_id]
         assert counter and counter[0].state == "2", [s.entity_id for s in hass.states.async_all("sensor")]
         assert await hass.config_entries.async_unload(entry.entry_id)
+
+
+async def test_moved_inverter_found_on_lan(hass):
+    """An inverter leaving its forwarded port is found again by the sweep."""
+    dev = INVERTERS[0]["device_id"]
+    disc = SossenDiscovery(hass, {dev: INVERTERS[0]["local_key"]}, None,
+                           ["192.168.1.41:6669"])
+    with patch("custom_components.sossen_direct.discovery._handshake_ok",
+               return_value=True):
+        await disc._match(disc._forwarded)
+    assert disc.get_ip(dev) == "192.168.1.41:6669"
+    disc.forget(dev)
+    assert disc.get_ip(dev) is None
+    # Now on the box LAN: only the LAN host accepts its key.
+    with patch("custom_components.sossen_direct.discovery._handshake_ok",
+               side_effect=lambda d, k, addr: addr == "192.168.1.120"):
+        await disc._match(disc._forwarded)
+        await disc._match(["192.168.1.120"], "sweep")
+    assert disc.get_ip(dev) == "192.168.1.120"
+
+
+async def test_forget_keeps_manual_address(hass):
+    dev = INVERTERS[0]["device_id"]
+    disc = SossenDiscovery(hass, {dev: "k"}, {dev: "192.168.1.77"})
+    disc.forget(dev)
+    assert disc.get_ip(dev) == "192.168.1.77"

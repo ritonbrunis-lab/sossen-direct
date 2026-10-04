@@ -395,8 +395,12 @@ class SossenCoordinator(DataUpdateCoordinator):
             )
 
         # TCP port unreachable: the inverter has no power (night without
-        # battery, or battery empty). Not an error.
+        # battery, or battery empty). Not an error. Its address is forgotten
+        # so discovery looks for it again (forwarded ports, then the LAN
+        # sweep): it is found wherever it reappears, e.g. moved off a
+        # second router onto the main network.
         await self._locked_job(self._disconnect)
+        self._discovery.forget(self._device_id)
         self._enter_powered_off()
         return self._build_off_data()
 

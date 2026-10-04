@@ -115,6 +115,19 @@ class SossenDiscovery:
         """Return the last known LAN IP of an inverter."""
         return self._ips.get(device_id)
 
+    def forget(self, device_id: str) -> None:
+        """Drop a discovered address so the inverter is looked for again.
+
+        Called when the address stopped answering at all: the inverter may
+        be powered off, or it may have moved (for example from a forwarded
+        port behind another router to the main LAN). Addresses set by hand
+        are kept.
+        """
+        if device_id in self._fixed:
+            return
+        if self._ips.pop(device_id, None) is not None:
+            _LOGGER.debug("Inverter %s: address unreachable, searching again", device_id)
+
     @callback
     def _on_packet(self, data: bytes, sender: str) -> None:
         try:
