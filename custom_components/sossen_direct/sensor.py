@@ -1,6 +1,10 @@
 """Sensor platform for SOSSEN Direct."""
 
-from homeassistant.components.sensor import SensorDeviceClass, SensorEntity
+from homeassistant.components.sensor import (
+    SensorDeviceClass,
+    SensorEntity,
+    SensorStateClass,
+)
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity import EntityCategory
@@ -36,6 +40,7 @@ async def async_setup_entry(
         ]
         entities.append(SossenStatusSensor(coordinator, entry))
         entities.append(SossenRawSensor(coordinator, entry))
+        entities.append(SossenLimitCommandsSensor(coordinator, entry))
     async_add_entities(entities)
 
 
@@ -153,3 +158,31 @@ class SossenRawSensor(CoordinatorEntity, SensorEntity):
             return None
         raw = self.coordinator.data.get("_raw", {})
         return {f"dp_{k}": v for k, v in raw.items()}
+
+
+class SossenLimitCommandsSensor(CoordinatorEntity, SensorEntity):
+    """Count of power-limit commands sent, to watch the inverter's wear."""
+
+    _attr_has_entity_name = True
+    _attr_translation_key = "limit_commands"
+    _attr_icon = "mdi:counter"
+    _attr_entity_category = EntityCategory.DIAGNOSTIC
+    _attr_state_class = SensorStateClass.TOTAL_INCREASING
+
+    def __init__(self, coordinator: SossenCoordinator, entry: ConfigEntry) -> None:
+        """Initialize the counter sensor."""
+        super().__init__(coordinator)
+        self._attr_unique_id = (
+            f"{coordinator.device_info_data[CONF_DEVICE_ID]}_limit_commands"
+        )
+        self._attr_device_info = build_device_info(coordinator.device_info_data)
+
+    @property
+    def available(self) -> bool:
+        """Always available: the count lives in the config entry."""
+        return True
+
+    @property
+    def native_value(self) -> int:
+        """Return the number of accepted power-limit commands."""
+        return self.coordinator.limit_commands

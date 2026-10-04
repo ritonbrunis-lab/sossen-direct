@@ -45,6 +45,8 @@ from .discovery import SossenDiscovery
 from .protocol import build_set_power_payload, decode_payload, decode_records
 
 POWER_LIMITS = "power_limits"
+# Power-limit commands accepted by each inverter since setup (wear tracking).
+LIMIT_COMMANDS = "limit_commands"
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -413,9 +415,14 @@ class SossenCoordinator(DataUpdateCoordinator):
             self._last_push = 0.0
             # Persist last set value so it survives restarts
             limits = {**self.entry.data.get(POWER_LIMITS, {}), self._device_id: watts}
-            new_data = {**self.entry.data, POWER_LIMITS: limits}
+            counts = dict(self.entry.data.get(LIMIT_COMMANDS, {}))
+            counts[self._device_id] = counts.get(self._device_id, 0) + 1
+            new_data = {**self.entry.data, POWER_LIMITS: limits, LIMIT_COMMANDS: counts}
             self.hass.config_entries.async_update_entry(self.entry, data=new_data)
-            _LOGGER.info("Power limit set to %dW", watts)
+            self.async_update_listeners()
+            _LOGGER.info(
+                "Power limit set to %dW (command #%d)", watts, counts[self._device_id]
+            )
         else:
             _LOGGER.error("Failed to set power limit to %dW", watts)
 
@@ -423,6 +430,11 @@ class SossenCoordinator(DataUpdateCoordinator):
         """Disconnect on shutdown."""
         await super().async_shutdown()
         await self._locked_job(self._disconnect)
+
+    @property
+    def limit_commands(self) -> int:
+        """Return how many power-limit commands this inverter accepted."""
+        return self.entry.data.get(LIMIT_COMMANDS, {}).get(self._device_id, 0)
 
     @property
     def power_limit(self) -> int | None:

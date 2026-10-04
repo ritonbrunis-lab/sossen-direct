@@ -99,6 +99,9 @@
       },
       "raw": {
         "name": "Raw Data"
+      },
+      "limit_commands": {
+        "name": "Power limit commands sent"
       }
     },
     "number": {

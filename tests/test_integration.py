@@ -244,3 +244,26 @@ async def test_forwarded_addresses_matched_by_key(hass):
         await disc._match(disc._forwarded)
     assert disc.get_ip(INVERTERS[0]["device_id"]) == "192.168.1.41:6669"
     assert disc.get_ip(INVERTERS[1]["device_id"]) == "192.168.1.41:6668"
+
+
+async def test_limit_commands_counted(hass):
+    entry = MockConfigEntry(domain=DOMAIN, data={**ACCOUNT, "devices": INVERTERS[:1]},
+                            unique_id="uid1")
+    entry.add_to_hass(hass)
+    with patch("custom_components.sossen_direct.fetch_inverters",
+               side_effect=RuntimeError("offline")), \
+         patch.object(SossenDiscovery, "async_start", return_value=None), \
+         patch.object(SossenDiscovery, "get_ip", return_value="192.168.1.50"), \
+         patch("custom_components.sossen_direct.cloudlink.Manager", FakeManager), \
+         patch("custom_components.sossen_direct.coordinator.tinytuya.Device", FakeDevice), \
+         patch("custom_components.sossen_direct.coordinator.LISTEN_WINDOW", 0.05):
+        assert await hass.config_entries.async_setup(entry.entry_id)
+        await hass.async_block_till_done()
+        number = hass.states.async_all("number")[0].entity_id
+        for watts in (900, 800):
+            await hass.services.async_call(
+                "number", "set_value", {"entity_id": number, "value": watts}, blocking=True)
+        counter = [s for s in hass.states.async_all("sensor")
+                   if s.entity_id.endswith("limit_commands_sent") or "commandes" in s.entity_id]
+        assert counter and counter[0].state == "2", [s.entity_id for s in hass.states.async_all("sensor")]
+        assert await hass.config_entries.async_unload(entry.entry_id)

@@ -99,6 +99,9 @@
       },
       "raw": {
         "name": "Données brutes"
+      },
+      "limit_commands": {
+        "name": "Commandes de limite envoyées"
       }
     },
     "number": {
