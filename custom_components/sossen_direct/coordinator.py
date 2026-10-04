@@ -38,6 +38,7 @@ from .const import (
     TUYA_DP_COMMAND,
     TUYA_PORT,
     WARMUP_POLLS,
+    split_address,
 )
 from .cloudlink import CloudLink
 from .discovery import SossenDiscovery
@@ -121,8 +122,9 @@ class SossenCoordinator(DataUpdateCoordinator):
             self._disconnect()
         if self._device is None:
             self._device_ip = ip
+            host, port = split_address(ip)
             self._device = tinytuya.Device(
-                self._device_id, self._device_ip, self._local_key, version=3.5
+                self._device_id, host, self._local_key, version=3.5, port=port
             )
             self._device.set_socketTimeout(3)
             self._device.set_socketPersistent(True)
@@ -148,7 +150,7 @@ class SossenCoordinator(DataUpdateCoordinator):
         if ip is None:
             return False
         try:
-            with socket.create_connection((ip, TUYA_PORT), timeout=5):
+            with socket.create_connection(split_address(ip), timeout=5):
                 return True
         except OSError:
             return False

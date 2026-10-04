@@ -134,6 +134,14 @@ TUYA_DP_COMMAND = 24
 TUYA_DP_POLL = [4103]
 
 
+def split_address(address: str) -> tuple[str, int]:
+    """Split "host" or "host:port" (a port forwarded through a router)."""
+    host, sep, port = address.strip().rpartition(":")
+    if sep and port.isdigit():
+        return host, int(port)
+    return address.strip(), TUYA_PORT
+
+
 def build_device_info(device: dict) -> dict:
     """Return the shared device_info dict for all entities of an inverter."""
     model = MODELS.get(device.get(CONF_MODEL, DEFAULT_MODEL), MODELS[DEFAULT_MODEL])

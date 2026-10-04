@@ -36,7 +36,7 @@ def _frame() -> str:
 
 
 class FakeDevice:
-    def __init__(self, dev_id, ip, key, version=3.5):
+    def __init__(self, dev_id, ip, key, version=3.5, port=6668):
         self.ip = ip
 
     def set_socketTimeout(self, t): pass
@@ -201,4 +201,34 @@ async def test_cloud_fallback_without_lan(hass):
         path, body = FakeManager.sent[-1]
         assert path.endswith("/commands") and body["commands"][0]["code"] == "cmd"
         assert hass.states.get(number).state == "900"
+        assert await hass.config_entries.async_unload(entry.entry_id)
+
+
+def test_split_address():
+    from custom_components.sossen_direct.const import split_address
+    assert split_address("192.168.1.41:6670") == ("192.168.1.41", 6670)
+    assert split_address(" 192.168.1.50 ") == ("192.168.1.50", 6668)
+
+
+async def test_forwarded_port_override(hass):
+    seen = []
+
+    class PortDevice(FakeDevice):
+        def __init__(self, dev_id, ip, key, version=3.5, port=6668):
+            super().__init__(dev_id, ip, key, version)
+            seen.append((ip, port))
+
+    entry = MockConfigEntry(domain=DOMAIN, data={**ACCOUNT, "devices": INVERTERS[:1]},
+                            options={"ip_overrides": {INVERTERS[0]["device_id"]: "192.168.1.41:6670"}},
+                            unique_id="uid1")
+    entry.add_to_hass(hass)
+    with patch("custom_components.sossen_direct.fetch_inverters",
+               side_effect=RuntimeError("offline")), \
+         patch.object(SossenDiscovery, "async_start", return_value=None), \
+         patch("custom_components.sossen_direct.cloudlink.Manager", FakeManager), \
+         patch("custom_components.sossen_direct.coordinator.tinytuya.Device", PortDevice), \
+         patch("custom_components.sossen_direct.coordinator.LISTEN_WINDOW", 0.05):
+        assert await hass.config_entries.async_setup(entry.entry_id)
+        await hass.async_block_till_done()
+        assert ("192.168.1.41", 6670) in seen
         assert await hass.config_entries.async_unload(entry.entry_id)

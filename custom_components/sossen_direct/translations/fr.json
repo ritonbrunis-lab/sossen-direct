@@ -111,7 +111,7 @@
     "step": {
       "init": {
         "title": "Adresses IP (facultatif)",
-        "description": "Laisse vide pour une détection automatique. Remplis seulement si un onduleur n'est jamais trouvé.\n{names}"
+        "description": "Laisse vide pour une détection automatique. Remplis seulement si un onduleur n'est jamais trouvé. Format : IP, ou IP:port si l'onduleur est derrière un autre routeur avec une redirection de port vers son port 6668.\n{names}"
       }
     }
   }

@@ -111,7 +111,7 @@
     "step": {
       "init": {
         "title": "IP addresses (optional)",
-        "description": "Leave blank for automatic discovery. Only fill in if an inverter is never found.\n{names}"
+        "description": "Leave blank for automatic discovery. Only fill in if an inverter is never found. Format: IP, or IP:port when the inverter sits behind another router with a port forwarded to its port 6668.\n{names}"
       }
     }
   }
