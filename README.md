@@ -31,6 +31,15 @@ Fais la configuration **en journée** : la nuit, l'onduleur s'éteint complètem
 
 Puissance AC et DC (totale et par panneau), tensions, courants, fréquence, température, énergie totale (compatible tableau Énergie), état (production / alarme / arrêt), rendement de conversion, et **limite de puissance** réglable (500 W min.).
 
+## Avertissement
+
+Projet personnel, **sans lien avec SOSSEN** ni avec Tuya, fourni tel quel (licence MIT), sans garantie.
+
+- La **protection anti-surtension** et la limite de puissance **envoient des commandes aux onduleurs**. Chaque changement de limite y est peut-être enregistré en mémoire, dont l'endurance n'est pas connue : la protection n'envoie une commande que lorsqu'une limite change vraiment, et le compteur « commandes envoyées » permet de surveiller leur nombre. Tu choisis de l’activer ou non à l’installation, et un interrupteur la coupe à tout moment.
+- Elle aide à éviter les décrochages en cas de surtension, mais **ne remplace pas** les protections de l'installation ni l'avis d'un électricien si la tension de ton réseau dépasse souvent 250 V (à signaler à Enedis).
+- Testé chez moi avec quatre 2in1 1000 W. Les autres modèles sont décodés de la même façon mais n'ont pas tous été essayés : un retour (onglet *Issues*) est le bienvenu, avec la page *État et diagnostic* des options.
+- Je maintiens ce projet sur mon temps libre : je lis les *Issues*, sans promesse de délai.
+
 ## Crédits
 
 Le décodage du protocole SOSSEN et la gestion du flux poussé viennent de [caveman2024/sossen-ha](https://github.com/caveman2024/sossen-ha) (MIT).
