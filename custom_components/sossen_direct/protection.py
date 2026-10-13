@@ -8,6 +8,11 @@ low threshold it goes back up one smaller step (step up), in between nothing
 changes: down fast, up slowly, so it does not oscillate. A command is sent only
 when a limit actually changes (the inverter may store each one in flash).
 
+A limit only goes back up on an inverter that is actually held by it (its AC
+output within RAISE_MARGIN of the limit): raising the limit of an inverter
+producing well below it (clouds, evening) changes nothing but costs a command.
+Each inverter is decided on its own.
+
 Replaces the external automation that did the same; options without the
 protection keys (installs older than 0.5.0) keep it disabled, and the single
 step of 0.5.0 (CONF_LIMIT_STEP) still applies to both directions until the
@@ -43,6 +48,9 @@ from .coordinator import SossenCoordinator
 
 _LOGGER = logging.getLogger(__name__)
 
+# An inverter producing at least (limit - RAISE_MARGIN) W is held by its limit.
+RAISE_MARGIN = 40
+
 
 def protection_settings(options: dict) -> dict:
     """Return the protection settings, defaults filled in.
@@ -63,6 +71,12 @@ def protection_errors(values: dict) -> dict[str, str]:
     if values[CONF_MIN_LIMIT] > values[CONF_MAX_LIMIT]:
         errors[CONF_MIN_LIMIT] = "min_above_max"
     return errors
+
+
+def is_held(coordinator: SossenCoordinator, limit: int) -> bool:
+    """True when the inverter produces up to its limit (unknown output: True)."""
+    power = (coordinator.data or {}).get("ac_power_w")
+    return power is None or power >= limit - RAISE_MARGIN
 
 
 def is_up(coordinator: SossenCoordinator) -> bool:
@@ -178,6 +192,8 @@ class OvervoltageProtection:
         for coordinator in up:
             highest = min(int(cfg[CONF_MAX_LIMIT]), coordinator.model["power_limit_max"])
             current = coordinator.power_limit or highest
+            if delta > 0 and not is_held(coordinator, current):
+                continue
             target = max(int(cfg[CONF_MIN_LIMIT]), min(highest, current + delta))
             if target != current:
                 await coordinator.async_set_power_limit(target)
@@ -191,3 +207,4 @@ class OvervoltageProtection:
             limit=max(changed), voltage=format_volts(self.hass, volts)
         )
         self._notify()
+

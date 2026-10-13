@@ -265,13 +265,13 @@ async def test_protection_switch(hass):
 
 # --- Protection controller logic ----------------------------------------
 
-def _inverter(volts, limit, status=3, max_w=1000):
+def _inverter(volts, limit, status=3, max_w=1000, power=None):
     async def set_limit(watts):
         inv.power_limit = watts
 
     inv = SimpleNamespace(
-        data={"status": status, "ac_voltage_v": volts} if status else {"status": 0,
-                                                                        "ac_voltage_v": None},
+        data={"status": status, "ac_voltage_v": volts, "ac_power_w": power} if status
+        else {"status": 0, "ac_voltage_v": None},
         power_limit=limit, model={"power_limit_max": max_w},
     )
     inv.async_set_power_limit = AsyncMock(side_effect=set_limit)
@@ -297,6 +297,21 @@ async def test_protection_raises_at_low_voltage_and_clamps(hass):
     await ctl.async_check()
     assert (a.power_limit, b.power_limit) == (1000, 800)
     assert ctl.last_action.startswith("Raised to 1000 W")
+
+
+async def test_protection_raises_only_inverters_held_by_their_limit(hass):
+    # Producing up to the limit (within 40 W): held, raised. Well below it
+    # (clouds, evening): raising would change nothing, so no command.
+    held, edge, free = _inverter(240.0, 800, power=795), _inverter(240.0, 800, power=760), \
+        _inverter(240.0, 800, power=610)
+    ctl = _protection(hass, [held, edge, free])
+    await ctl.async_check()
+    assert (held.power_limit, edge.power_limit, free.power_limit) == (900, 900, 800)
+    free.async_set_power_limit.assert_not_called()
+    # Lowering still applies to every inverter, held or not.
+    hot = [_inverter(250.0, 800, power=795), _inverter(250.0, 800, power=300)]
+    await _protection(hass, hot).async_check()
+    assert [i.power_limit for i in hot] == [700, 700]
 
 
 async def test_protection_clamps_at_min_and_skips_unchanged(hass):
