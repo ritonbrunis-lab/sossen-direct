@@ -80,11 +80,6 @@
     }
   },
   "entity": {
-    "button": {
-      "read_power_limit": {
-        "name": "Relire la limite"
-      }
-    },
     "sensor": {
       "dc_power_total_w": {
         "name": "Puissance DC totale"
@@ -286,9 +281,6 @@
     },
     "min_above_max": {
       "message": "La limite la plus basse ne peut pas dépasser la plus haute."
-    },
-    "limit_not_answered": {
-      "message": "L'onduleur n'a pas répondu (il est peut-être éteint). Réessaie pendant qu'il produit."
     }
   }
 }

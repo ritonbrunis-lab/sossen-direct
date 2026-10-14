@@ -10,10 +10,8 @@ from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from homeassistant import config_entries
 from homeassistant.data_entry_flow import FlowResultType
-from homeassistant.exceptions import HomeAssistantError
 
 from custom_components.sossen_direct.const import DOMAIN
-from custom_components.sossen_direct.coordinator import SossenCoordinator
 from custom_components.sossen_direct.discovery import SossenDiscovery
 
 INVERTERS = [
@@ -327,37 +325,3 @@ async def test_forget_keeps_manual_address(hass):
     disc = SossenDiscovery(hass, {dev: "k"}, {dev: "192.168.1.77"})
     disc.forget(dev)
     assert disc.get_ip(dev) == "192.168.1.77"
-
-
-async def test_read_power_limit_button(hass):
-    entry = MockConfigEntry(domain=DOMAIN, data={**ACCOUNT, "devices": INVERTERS[:1],
-                                                 "power_limits": {INVERTERS[0]["device_id"]: 990}},
-                            unique_id="uid1")
-    entry.add_to_hass(hass)
-    with patch("custom_components.sossen_direct.fetch_inverters",
-               side_effect=RuntimeError("offline")), \
-         patch.object(SossenDiscovery, "async_start", return_value=None), \
-         patch.object(SossenDiscovery, "get_ip", return_value="192.168.1.50"), \
-         patch("custom_components.sossen_direct.cloudlink.Manager", FakeManager), \
-         patch("custom_components.sossen_direct.coordinator.tinytuya.Device", FakeDevice), \
-         patch("custom_components.sossen_direct.coordinator.LISTEN_WINDOW", 0.05):
-        assert await hass.config_entries.async_setup(entry.entry_id)
-        await hass.async_block_till_done()
-        number = _power_limit_entity(hass)
-        button = next(s.entity_id for s in hass.states.async_all("button")
-                      if s.entity_id.endswith("read_power_limit"))
-        assert float(hass.states.get(number).state) == 990
-        # The inverter forgot the 990 W set by HA: the number shows its answer.
-        with patch.object(SossenCoordinator, "_sync_read_power_limit", return_value=1000):
-            await hass.services.async_call("button", "press", {"entity_id": button},
-                                           blocking=True)
-        state = hass.states.get(number)
-        assert float(state.state) == 1000 and state.attributes["read_from_inverter"] == 1000
-        assert entry.data["power_limits"][INVERTERS[0]["device_id"]] == 1000
-        # No answer: an error, the value is kept.
-        with patch.object(SossenCoordinator, "_sync_read_power_limit", return_value=None), \
-             pytest.raises(HomeAssistantError):
-            await hass.services.async_call("button", "press", {"entity_id": button},
-                                           blocking=True)
-        assert float(hass.states.get(number).state) == 1000
-        assert await hass.config_entries.async_unload(entry.entry_id)
