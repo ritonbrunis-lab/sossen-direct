@@ -8,13 +8,14 @@ import asyncio
 import logging
 import socket
 import time
-from datetime import timedelta
+from datetime import datetime, timedelta
 
 import tinytuya
 
 from homeassistant.core import HomeAssistant
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
+from homeassistant.util import dt as dt_util
 
 from .const import (
     CONF_DEVICE_ID,
@@ -92,6 +93,8 @@ class SossenCoordinator(DataUpdateCoordinator):
         self._power_limit: int | None = last_limit or self.model["power_limit_max"]
         self._limit_read_pending: bool = last_limit is None
         self._limit_read_attempts: int = 3
+        # (when, watts) of the last limit read from the inverter on request.
+        self.limit_read: tuple[datetime, int] | None = None
         self._failed_polls: int = 0
         # Grace period at HA start too: the device may still be warming up.
         self._warmup_polls_left: int = WARMUP_POLLS
@@ -429,6 +432,34 @@ class SossenCoordinator(DataUpdateCoordinator):
             )
         else:
             _LOGGER.error("Failed to set power limit to %dW", watts)
+
+    async def async_read_power_limit(self) -> int | None:
+        """Ask the inverter for the limit it actually holds (None: no answer).
+
+        Unlike the stored value (the last one HA set), this shows what the
+        inverter kept, e.g. after a night switched off. Through the cloud it
+        is the limit the cloud last reported.
+        """
+        if self._use_cloud():
+            limit = self._cloud.power_limit(self._device_id)
+        else:
+            limit = await self._locked_job(self._sync_read_power_limit)
+            # The query reply interrupts the pushed stream, as a command does.
+            self._last_push = 0.0
+        if limit is None:
+            _LOGGER.warning("Power limit query not answered")
+            return None
+        _LOGGER.info("Power limit read from the inverter: %dW (HA had %sW)",
+                        limit, self._power_limit)
+        self.limit_read = (dt_util.utcnow(), limit)
+        if limit != self._power_limit:
+            self._power_limit = limit
+            limits = {**self.entry.data.get(POWER_LIMITS, {}), self._device_id: limit}
+            self.hass.config_entries.async_update_entry(
+                self.entry, data={**self.entry.data, POWER_LIMITS: limits}
+            )
+        self.async_update_listeners()
+        return limit
 
     async def async_shutdown(self) -> None:
         """Disconnect on shutdown."""

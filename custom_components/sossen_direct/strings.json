@@ -80,6 +80,11 @@
     }
   },
   "entity": {
+    "button": {
+      "read_power_limit": {
+        "name": "Read power limit"
+      }
+    },
     "sensor": {
       "dc_power_total_w": {
         "name": "DC Total Power"
@@ -281,6 +286,9 @@
     },
     "min_above_max": {
       "message": "The lowest limit must not exceed the highest limit."
+    },
+    "limit_not_answered": {
+      "message": "The inverter did not answer (it may be off). Try again while it produces."
     }
   }
 }

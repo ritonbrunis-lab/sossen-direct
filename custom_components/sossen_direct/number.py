@@ -101,6 +101,14 @@ class SossenPowerLimit(CoordinatorEntity, NumberEntity):
         """Return the current power limit."""
         return self.coordinator.power_limit
 
+    @property
+    def extra_state_attributes(self) -> dict | None:
+        """When the limit was last read from the inverter, and its answer."""
+        if self.coordinator.limit_read is None:
+            return None
+        when, watts = self.coordinator.limit_read
+        return {"read_from_inverter_at": when.isoformat(), "read_from_inverter": watts}
+
     async def async_set_native_value(self, value: float) -> None:
         """Set the power limit."""
         await self.coordinator.async_set_power_limit(int(value))

@@ -121,7 +121,7 @@ RECONNECT_AFTER_FAILURES = 18
 # device boots: it needs ~2 min after power-on before answering.
 WARMUP_POLLS = 20
 
-PLATFORMS = [Platform.SENSOR, Platform.NUMBER, Platform.SWITCH]
+PLATFORMS = [Platform.BUTTON, Platform.SENSOR, Platform.NUMBER, Platform.SWITCH]
 
 # DP IDs for reading (0x1000+ range)
 DP_STATUS = 4096
